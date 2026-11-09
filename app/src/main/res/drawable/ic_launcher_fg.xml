@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shapes in H-ECU Logger's 160-unit icon space, scaled into the 66 dp safe zone of a 108 dp icon.
+     The amber wave crosses the H where the crossbar would be, with a dark outline to keep it apart. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.46"
+        android:scaleY="0.46"
+        android:translateX="15.82"
+        android:translateY="17.2">
+        <path
+            android:fillColor="#FF1976D2"
+            android:pathData="M30,132L54,132L80,28L56,28Z M86,132L110,132L136,28L112,28Z" />
+        <path
+            android:strokeColor="#FF08090C"
+            android:strokeWidth="20"
+            android:strokeLineCap="round"
+            android:pathData="M34,80 Q46,48 58,80 T82,80 T106,80 T130,80" />
+        <path
+            android:strokeColor="#FFFFA000"
+            android:strokeWidth="11"
+            android:strokeLineCap="round"
+            android:pathData="M34,80 Q46,48 58,80 T82,80 T106,80 T130,80" />
+    </group>
+</vector>

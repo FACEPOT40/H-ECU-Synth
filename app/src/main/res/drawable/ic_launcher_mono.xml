@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One-color icon for Android's themed icons (only the shape counts here, so no dark outline) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.46"
+        android:scaleY="0.46"
+        android:translateX="15.82"
+        android:translateY="17.2">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M30,132L54,132L80,28L56,28Z M86,132L110,132L136,28L112,28Z" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="11"
+            android:strokeLineCap="round"
+            android:pathData="M34,80 Q46,48 58,80 T82,80 T106,80 T130,80" />
+    </group>
+</vector>

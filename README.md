@@ -1,0 +1,34 @@
+# H-ECU Synth
+
+Synthetic engine sound for Android, driven by your bike's revs and throttle. Sister app of
+[H-ECU Logger](https://github.com/FACEPOT40/Honda-ECU-Logger).
+
+Every sound is made from scratch while you ride (no recordings): a virtual crankshaft fires
+each cylinder at the right angle, and the exhaust pulses are shaped by a pipe echo and a tone
+filter that opens with the throttle.
+
+**Status: 0.1.0, simulator only.** Pick a style, start the engine and rev it with the on-screen
+throttle. The bike connection (K-line, read-only) comes next.
+
+## Engine styles
+1-cyl · 90° V-twin · I4 superbike (flat-plane) · I4 crossplane · V6 turbo · V8 · V10
+
+The bike's idle and redline are mapped onto each style's own range, so a 9,500 rpm bike can
+sound like a V10 at 19,000.
+
+Also: cam crossover at a chosen rpm (harder tone above it), exhaust pops when you let go,
+and a "bike data rate" switch that feeds the sound at K-line speed (~17 readings a second).
+
+## Build
+```
+gradlew.bat testDebugUnitTest assembleDebug
+```
+with `JAVA_HOME` set to Android Studio's `jbr`. The tests also write one demo rev run per style
+to `app/build/demo-wav/` so you can listen on the PC.
+
+## Safety
+Keep the volume low enough to hear traffic. The K-line link will only read data, never write
+to the ECU (same whitelist as H-ECU Logger).
+
+## License
+GPL-3.0. Not affiliated with or endorsed by Honda. Engine names describe engine layouts only.
