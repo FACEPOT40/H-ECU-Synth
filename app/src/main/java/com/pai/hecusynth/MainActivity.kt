@@ -51,8 +51,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             engineSound = prefs.getBoolean("engine_sound", true)
             turbo = prefs.getBoolean("turbo", false)
             blowOff = prefs.getBoolean("blow_off", false)
-            blowOffSound = BlowOffSound.entries.firstOrNull { it.name == prefs.getString("blow_off_sound", null) }
-                ?: BlowOffSound.WHISTLE
+            blowOffPitch = prefs.getInt("blow_off_pitch", 6500).toDouble()
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -138,14 +137,18 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.blowOff = on
             prefs.edit().putBoolean("blow_off", on).apply()
         })
-        lateinit var bovButton: Button
-        bovButton = uiButton("Blow-off sound: ${synth.blowOffSound.label}") {
-            val all = BlowOffSound.entries
-            synth.blowOffSound = all[(synth.blowOffSound.ordinal + 1) % all.size]
-            prefs.edit().putString("blow_off_sound", synth.blowOffSound.name).apply()
-            bovButton.text = "Blow-off sound: ${synth.blowOffSound.label}"
+        val bovPitchLabel = uiText(12f, Look.GREY)
+        fun showBovPitch() {
+            val hz = synth.blowOffPitch.toInt()
+            bovPitchLabel.text = "Blow-off pitch %.1f kHz%s".format(hz / 1000.0, if (hz == 6500) " (original)" else "")
         }
-        controls.addView(bovButton)
+        showBovPitch()
+        controls.addView(bovPitchLabel)
+        controls.addView(seek(60, (synth.blowOffPitch.toInt() - 5000) / 100) { v ->
+            synth.blowOffPitch = 5000.0 + v * 100
+            prefs.edit().putInt("blow_off_pitch", synth.blowOffPitch.toInt()).apply()
+            showBovPitch()
+        })
         controls.addView(switch("Bike data rate (17/s)", bikeRate) { on ->
             bikeRate = on
             prefs.edit().putBoolean("bike_rate", on).apply()

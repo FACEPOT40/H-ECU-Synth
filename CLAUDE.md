@@ -115,35 +115,18 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   (`tpsPeak` / `peakAge` in Synth) is 30+ points higher, so slow releases count too.
   `TurboTest.blowOffOnEveryLetOff` (short rev, quick and eased-off release, via Synth at
   17/s). Backfire bangs keep their own snap check (> 40-point drop) unchanged.
-- Blow-off sound choice (9 Nov, Pai: "tune a blow off valve sound at higher pitch as this
-  sample", an SQV-type valve on a 1NZ-FE turbo; measured only, never shipped):
-  `BlowOffSound` WHISTLE (new default) / HISS (the earlier, approved one); `Synth.blowOffSound`,
-  desktop drop-down next to "Blow-off valve", phone button "Blow-off sound: ..." (pref
-  `blow_off_sound`). No brand names in the app. The clip's main note is about as high as ours
-  (6360 Hz) but a SHARP whistle (half-power ~33 Hz wide, ours was a ~120 Hz band of hiss), plus
-  a second note ~9.9 kHz and airy hiss to ~13 kHz, building over ~105 ms with hard chatter
-  (0.3 <-> 1.0), ~400 ms with a soft tail: that's the "higher pitch". WHISTLE = sines 6360 +
-  9890 Hz (x0.3, tiny shared wobble) x W_TONE 0.3 + air (Svf 8.5 kHz Q 0.6 + 4.8 kHz Q 2 x0.3) x
-  W_AIR 0.22; envelope up 60 ms, hold to 160 ms, to a 0.2 tail, gone by ~0.5 s; chatter
-  random walk 0.03, depth 9 (clamped 0.25-1.2) while loud; W_GAIN 6.8 = as loud as HISS.
-  Measured vs clip: 6349 Hz half-power 6344-6376, 9900 Hz, centre 6825 (6754), shares
-  5.5-7.5 / 7.5-10 / 10-13 kHz 85 / 9 / 2 % (79 / 7 / 4), rise 110 ms, ~420 ms.
-  `TurboTest.whistleBlowOffIsASharpTsuuu`; demo `lone_bov_whistle.wav`. Lone demo WAVs are now
-  scaled to a 0.9 peak (the old x4 clipped, the first lone_bov too).
-  Pai: the sine version "sounds like bell instead of hiss of bov". Pure tones that swell and
-  fade = a bell. Now the notes are AIR: white noise through very narrow `Svf` bands (6360 Hz
-  Q 120, 9890 Hz Q 80; note this Svf's band output peaks at x Q, hence x0.2 / x0.039), plus
-  the same air. Measured vs clip: noisiness 0.07 (clip 0.10, bell version 0.05), half-power
-  6342-6389 Hz (6347-6380), shares 86 / 5 / 4 % (79 / 7 / 4), centre 6770 (6754), choppy
-  0.12-1.0 like the clip, level = HISS.
-  Pai: "It's not air hiss. It's still a bell sound." Even a Q 120 band of noise reads as a
-  ringing note. Now WHISTLE uses the same width as HISS: `Svf` 6360 Hz Q 25 + 9890 Hz Q 20
-  (x0.35), W_NOTE 0.25, more broadband air (W_AIR 0.32), W_GAIN 3.2; the "higher" character
-  comes from the air above, not a sharp note. Measured: noisiness 0.10 (= clip), main band
-  half-power 6242-6462 Hz, shares 75 / 8 / 9 % (clip 79 / 7 / 4), rise 100 ms, ~420 ms, level
-  = HISS. Test `whistleBlowOffIsAnAiryTsss` also checks no peak > 30x its neighbours.
-  Lesson: keep pitched parts at Q <= ~25 (the HISS width Pai approved); sharper = bell.
-  Not yet heard by Pai.
+- Blow-off pitch (9 Nov). Pai sent an SQV-type blow-off clip: "tune ... at higher pitch as
+  this sample". Three tries at a separate WHISTLE blow-off (sharp sine notes, then Q 120 bands
+  of noise, then Q 25 bands + more air) ALL sounded like a bell to Pai, even when they measured
+  close to the clip (pitch, width, airiness 0.10). Pai: "start from the original BOV sound
+  that I was okay instead". So the Whistle / Hiss choice is gone; `Turbo.kt` is back to the
+  approved blow-off (restored from 9d4af9d) plus `blowOffPitch` (Hz, 5000-11000, default 6500 =
+  the original): `snap()` re-tunes the same Q 25 band to that pitch, level x sqrt(6500 / hz)
+  (measured within +2 dB at 8-9.5 kHz). `Synth.blowOffPitch`; desktop slider "Blow-off
+  pitch" (50-110 x 100 Hz) and phone slider (pref `blow_off_pitch`). Demos `lone_bov`
+  (6.5 kHz), `lone_bov_8k`, `lone_bov_9k5`, `lone_bov_11k`. `TurboTest.blowOffPitchMovesTheSameSound`.
+  Lessons: don't redesign an approved sound to chase a reference; move one parameter of it.
+  Pitched parts must stay wide (Q <= ~25) or they ring like a bell. Pai's pick not known yet.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the

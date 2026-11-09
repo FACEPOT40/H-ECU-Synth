@@ -50,7 +50,7 @@ class TurboTest {
     }
 
     @Test fun blowOffIsAShortHighTsss() {
-        val t = turbo().apply { blowOffSound = BlowOffSound.HISS }
+        val t = turbo()
         t.run(1.5, 1.0, 0.8, false)                            // build boost, whistle off
         assertTrue("boost ${t.pressure}", t.pressure > 0.6)
         t.snap(blowOff = true)
@@ -102,35 +102,23 @@ class TurboTest {
         }
     }
 
-    /** Whistle blow-off, like the SQV clip: an airy "tsss" centred near 6.4 kHz with more hiss
-     *  up to ~13 kHz, ~400 ms long; about as loud as the hiss one. No sharp note: pure tones,
-     *  and even very narrow bands, sounded like a bell (Pai). */
-    @Test fun whistleBlowOffIsAnAiryTsss() {
-        fun blow(kind: BlowOffSound): DoubleArray {
-            val t = turbo().apply { blowOffSound = kind }
+    /** The pitch setting moves the original blow-off up, keeping its loudness and shape. */
+    @Test fun blowOffPitchMovesTheSameSound() {
+        fun blow(hz: Double): DoubleArray {
+            val t = turbo().apply { blowOffPitch = hz }
             t.run(1.5, 1.0, 0.8, false)
             t.snap(blowOff = true)
-            return t.run(0.7, 0.0, 0.8, false)
+            return t.run(0.4, 0.0, 0.8, false).copyOfRange(0, (0.2 * sr).toInt())
         }
-        val w = blow(BlowOffSound.WHISTLE)
-        val h = blow(BlowOffSound.HISS)
-        val head = w.copyOfRange(0, (0.3 * sr).toInt())
-        // 5 Hz steps: the main note is only ~30 Hz wide, coarser steps miss it
-        fun band(a: Double, b: Double) = generateSequence(a) { it + 5 }.takeWhile { it < b }.sumOf { power(head, it) }
-        val all = band(2500.0, 20000.0)
-        val note = band(5500.0, 7500.0)
-        val bright = band(7500.0, 13000.0)
-        val long = rms(w.copyOfRange((0.3 * sr).toInt(), (0.45 * sr).toInt())) / rms(head)
-        println("whistle blow-off: %.0f %% at 5.5-7.5 kHz (clip ~79 %%), %.0f %% at 7.5-13 kHz (clip ~11 %%), level vs hiss %.1f dB, 0.3-0.45 s at %.2f of the start"
-            .format(100 * note / all, 100 * bright / all, 20 * kotlin.math.log10(rms(head) / rms(h.copyOfRange(0, (0.3 * sr).toInt()))), long))
-        assertTrue("centred near 6.4 kHz", note / all > 0.6)
-        // airy, not a ringing note: no narrow peak far above its neighbours
-        val peak = generateSequence(6200.0) { it + 5 }.takeWhile { it < 6600 }.maxOf { power(head, it) }
-        val near = generateSequence(6200.0) { it + 5 }.takeWhile { it < 6600 }.map { power(head, it) }.sorted().toList().let { it[it.size / 2] }
-        assertTrue("a ringing note (peak ${peak / near}x its neighbours)", peak < near * 30)
-        assertTrue("airy top", bright / all in 0.05..0.25)
-        assertTrue("long tail", long > 0.05)
-        assertTrue("silent after", rms(w.copyOfRange((0.62 * sr).toInt(), w.size)) < rms(head) * 0.01)
+        val base = blow(6500.0)
+        for (hz in listOf(8000.0, 9500.0)) {
+            val x = blow(hz)
+            val peak = generateSequence(hz - 1000) { it + 20 }.takeWhile { it <= hz + 1000 }.maxBy { power(x, it) }
+            val db = 20 * kotlin.math.log10(rms(x) / rms(base))
+            println("blow-off pitch %.0f Hz: strongest at %.0f Hz, level %+.1f dB vs the original".format(hz, peak, db))
+            assertTrue("pitch $hz -> peak $peak", abs(peak - hz) < hz * 0.03)
+            assertTrue("level $db dB", abs(db) < 2.0)
+        }
     }
 
     @Test fun switchesOffMeansNoSound() {
@@ -197,8 +185,9 @@ class TurboTest {
     @Test fun loneTurboWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        for ((name, kind) in listOf("lone_bov" to BlowOffSound.HISS, "lone_bov_whistle" to BlowOffSound.WHISTLE)) {
-            val b = turbo().apply { blowOffSound = kind }
+        // the original (6.5 kHz) and higher pitches, to hear the slider's range
+        for ((name, hz) in listOf("lone_bov" to 6500.0, "lone_bov_8k" to 8000.0, "lone_bov_9k5" to 9500.0, "lone_bov_11k" to 11000.0)) {
+            val b = turbo().apply { blowOffPitch = hz }
             b.run(1.5, 1.0, 0.8, false)
             b.snap(blowOff = true)
             write(File(dir, "$name.wav"), b.run(2.0, 0.0, 0.8, false))

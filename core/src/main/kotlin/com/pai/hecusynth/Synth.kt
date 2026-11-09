@@ -43,7 +43,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var engineSound = true
     @Volatile var turbo = false             // turbo whistle
     @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
-    @Volatile var blowOffSound = BlowOffSound.WHISTLE
+    @Volatile var blowOffPitch = 6500.0     // Hz; 6500 = the original blow-off
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -201,7 +201,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             // boost out
             if (tps >= tpsPeak) { tpsPeak = tps; peakAge = 0 }
             if (tps < 15 && tpsPeak - tps > 30) {
-                turboFx.blowOffSound = blowOffSound
+                turboFx.blowOffPitch = blowOffPitch
                 turboFx.snap(blowOff)
                 tpsPeak = tps
                 peakAge = 0

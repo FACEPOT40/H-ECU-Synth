@@ -5,14 +5,6 @@ import kotlin.math.exp
 import kotlin.math.pow
 import kotlin.math.sin
 
-/** How the blow-off valve sounds. Pai picks (desktop + phone). */
-enum class BlowOffSound(val label: String) {
-    /** A sharp whistling "tsuuu" over airy hiss, chattering hard (a second reference clip). */
-    WHISTLE("Whistle"),
-    /** A plain narrow "tsss" (the first reference clip). */
-    HISS("Hiss"),
-}
-
 /**
  * Turbo whistle and blow-off valve, each switched on its own (Pai, 9 Nov: "for fun"). Shaped
  * by measuring a clip Pai sent (an HKS blow-off on a Subaru, plus the whistle in a turbo clip;
@@ -20,15 +12,11 @@ enum class BlowOffSound(val label: String) {
  *  - Whistle: a clean tone that climbs from ~3 to ~7.7 kHz in ~0.8 s as the turbo spools up,
  *    and slides back to ~2.6 kHz over ~1.2 s as it spins down. Here: pitch = 2.5 + 5.5 kHz x
  *    turbo speed.
- *  - Blow-off, two sounds ([BlowOffSound]):
- *    HISS: a narrow ~6.5 kHz "tsss" (80-90 % of it in a ~150 Hz wide band), up in 15-20 ms,
+ *  - Blow-off: a narrow ~6.5 kHz "tsss" (80-90 % of it in a ~150 Hz wide band), up in 15-20 ms,
  *    then chattering as it fades over ~150 ms.
- *    WHISTLE (Pai, 9 Nov: "higher pitch as this sample", an SQV-type valve on a 1NZ turbo):
- *    the main note is about as high (6360 Hz) but a SHARP whistle (half-power only ~33 Hz
- *    wide), a second whistle near 9.9 kHz, airy hiss up to ~13 kHz (7.5-13 kHz ~11 % of the
- *    sound above 2.5 kHz), building over ~100 ms with hard chatter (loudness jumping
- *    ~0.3-1.0), lasting ~400 ms with a long soft tail.
- * Pai liked both. (A turbo flutter was tried and dropped: not enough reference samples to get
+ * Pai liked both. The blow-off's pitch can be moved ([blowOffPitch]; Pai wanted a higher one
+ * like an SQV-type valve). Three tries at a separate "whistle" blow-off all sounded like a
+ * bell to Pai, so it's this same sound, only shifted in pitch. (A turbo flutter was tried and dropped: not enough reference samples to get
  * it right, Pai's call.)
  * Plain Kotlin, driven by [Synth].
  */
@@ -44,20 +32,16 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var wobble = 0.0
 
     // blow-off
-    var blowOffSound = BlowOffSound.WHISTLE
     private var bovT = -1.0             // seconds into the blow-off, < 0 = none
-    private var bovKind = BlowOffSound.WHISTLE
-    // NO sharp notes: pure tones (and even very narrow bands of hiss, Q 120) sounded like a
-    // bell (Pai). Same width as the HISS blow-off Pai likes (Q 25), the brighter / higher
-    // character comes from much more airy hiss above it
-    private val wNote1 = Svf().apply { set(6360.0, 25.0, sr) }   // main "tsss"
-    private val wNote2 = Svf().apply { set(9890.0, 20.0, sr) }   // higher "tsss"
-    private val wAir = Svf().apply { set(8500.0, 0.6, sr) }     // airy hiss ~5-13 kHz
-    private val wLowAir = Svf().apply { set(4800.0, 2.0, sr) }
     private var bovSize = 0.0
     private var chatter = 0.0
     private var chatter2 = 0.0
     private val bovBand = Svf().apply { set(6500.0, 25.0, sr) }
+    private var bovLevel = 1.0
+
+    /** Blow-off pitch in Hz (the original, approved sound = 6500). Takes effect at the next
+     *  blow-off. */
+    var blowOffPitch = 6500.0
 
     /** Throttle let off: with [blowOff] on, the valve lets the boost out. Every let-off after
      *  some throttle gives one (Pai: "every time we let off the throttle"), bigger after a
@@ -66,8 +50,10 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         val p = pressure
         if (p < 0.1 || !blowOff) return
         bovT = 0.0
-        bovKind = blowOffSound
         bovSize = 0.35 + 0.65 * p
+        val hz = blowOffPitch.coerceIn(PITCH_MIN, PITCH_MAX)
+        bovBand.set(hz, 25.0, sr)                       // same sharpness, only the pitch moves
+        bovLevel = kotlin.math.sqrt(6500.0 / hz)        // a higher band holds more noise: same loudness
         pressure = 0.0
     }
 
@@ -97,41 +83,14 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             out += w * WHISTLE * speed.pow(1.5) * (0.35 + 0.65 * load)
         }
 
-        if (bovT >= 0 && bovKind == BlowOffSound.WHISTLE) {
-            // whistle blow-off: builds over ~60 ms, holds to ~160 ms, drops to a soft tail
-            // that fades by ~0.5 s; hard chatter while it's loud
-            val t = bovT
-            val env = when {
-                t < 0.06 -> t / 0.06
-                t < 0.16 -> 1.0
-                t < 0.42 -> 0.2 + 0.8 * exp(-(t - 0.16) / 0.04)
-                else -> 0.2 * exp(-(t - 0.42) / 0.05)
-            }
-            chatter += (rnd() * 2 - 1 - chatter) * 0.03     // faster, deeper chatter
-            chatter2 += (chatter - chatter2) * 0.03
-            val deep = if (t < 0.2) 1.0 else 0.4
-            val mod = (0.65 + 9.0 * deep * chatter2).coerceIn(0.25, 1.2)
-            val nz = rnd() * 2 - 1
-            wNote1.process(nz)
-            wNote2.process(nz)
-            // (this filter boosts its centre by its sharpness Q, so the bands are scaled down)
-            val tone = wNote1.band * W_NOTE + wNote2.band * W_NOTE * 0.35
-            wAir.process(nz)
-            wLowAir.process(nz)
-            val air = wAir.band * W_AIR + wLowAir.band * W_AIR * 0.3
-            out += (tone * W_TONE + air) * env * mod * bovSize * W_GAIN
-            bovT += 1 / sr
-            if (bovT > 0.6) bovT = -1.0
-        }
-
-        // hiss blow-off: up in 15 ms, fades over ~150 ms, chattering
-        if (bovT >= 0 && bovKind == BlowOffSound.HISS) {
+        // blow-off: up in 15 ms, fades over ~150 ms, chattering
+        if (bovT >= 0) {
             val env = if (bovT < 0.015) bovT / 0.015 else exp(-(bovT - 0.015) / 0.06)
             chatter += (rnd() * 2 - 1 - chatter) * 0.01    // valve chatter, a few tens per second
             chatter2 += (chatter - chatter2) * 0.01
             val mod = (0.6 + 4.0 * chatter2).coerceIn(0.15, 1.3)
             bovBand.process(rnd() * 2 - 1)
-            out += bovBand.band * env * mod * bovSize * BLOW_OFF
+            out += bovBand.band * env * mod * bovSize * BLOW_OFF * bovLevel
             bovT += 1 / sr
             if (bovT > 0.4) bovT = -1.0
         }
@@ -142,10 +101,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // levels next to the engine (calibrated with TurboTest / the demo WAVs)
         const val WHISTLE = 0.35
         const val BLOW_OFF = 2.4
-        // whistle blow-off: note and air (calibrated with TurboTest against the SQV clip)
-        const val W_TONE = 1.0
-        const val W_NOTE = 0.25
-        const val W_AIR = 0.32
-        const val W_GAIN = 3.2          // as loud as the hiss blow-off
+        const val PITCH_MIN = 5000.0
+        const val PITCH_MAX = 11000.0
     }
 }
