@@ -53,6 +53,27 @@ class FxTest {
         assertTrue("lope changed the sound at 8,000 rpm: $a -> $b", abs(a - b) / a < 0.05)
     }
 
+    /** A burst, like the reference clip: several pops 25-33 ms apart, each softer than the last,
+     *  and a first pop of 1.0 peaking near 1. */
+    @Test fun burstIsAFadingRowOfPops() {
+        var r = 0x2545F4914F6CDD1DL
+        val bf = Backfire(48000.0) { r = r xor (r shl 13); r = r xor (r ushr 7); r = r xor (r shl 17); (r ushr 11).toDouble() / (1L shl 53) }
+        bf.burst(6, 1.0, 0.15)
+        val x = DoubleArray(sr / 2) { bf.next() }
+        // peak of each 29 ms slot (pops come every 25-33 ms)
+        val hits = ArrayList<Double>()
+        var i = 0
+        while (i < x.size) {
+            val win = x.copyOfRange(i, minOf(x.size, i + 1200))
+            hits += win.maxOf { abs(it) }
+            i += 1200
+        }
+        println("burst peaks per 25 ms: " + hits.take(10).joinToString(" ") { "%.2f".format(it) })
+        assertTrue("first pop peak ${hits[0]}", hits[0] in 0.5..2.0)
+        assertTrue("later pops softer", hits[4] < hits[0] * 0.8)
+        assertTrue("quiet after the burst", hits.last() < hits[0] * 0.1)
+    }
+
     /** Snap the throttle shut from high revs: bangs (when on) make it much louder for a moment. */
     private fun snapPeak(bangs: Boolean, pops: Boolean = false): Double {
         val s = Synth(sr).apply { style = Styles.byId("i4"); this.bangs = bangs; crackles = pops }

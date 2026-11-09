@@ -55,13 +55,22 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   V-twin", pops "too dry", "add a bang sound to enable"): style `lope` (0..1, "Cam lope"
   slider; single 0.2, V-twin 0.35, I4 CP 0.1) at idle only (`idleF`, gone from 35 % of the rev
   range): rpm hunts up to 15 % (new random target every 0.15-0.5 s), +40° timing scatter,
-  bang loudness +-70 %, 18 % weak bangs, more bark. "Idle lump" range now 0-40°. Pops now a
-  wet voice: darker noise burst (12 ms) + low "pof" sine 90-180 Hz (35 ms) + 2-5 trailing
-  crackle grains, mostly after the saturation, through `Tail` (3 damped echoes 23-41 ms).
-  `Synth.bangs` (switch "Backfire bangs", off by default, desktop + phone): 1-3 bangs when the
-  throttle snaps shut (> 40 points) from > 40 % of the rev range, and ~0.4/s while coasting
-  there; each = crack (0.8 ms) + blast (30 ms) + falling boom 58-83 Hz (130 ms) + tail.
-  `FxTest`. Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
+  bang loudness +-70 %, 18 % weak bangs, more bark. "Idle lump" range now 0-40°.
+  `Synth.bangs` (switch "Backfire bangs", off by default, desktop + phone).
+- Pops and bangs v2 (9 Nov, matched to a reference video Pai sent, `Downloadsideoplayback.mp4`,
+  never committed or used as audio; measured via Windows' MediaTranscoder -> WAV + numpy):
+  the clip's pops come in BURSTS of 4-9, 25-30 ms apart, fading (+22 -> +12 dB over the
+  engine), ringing 200 -> 30 ms, a "pap" at the pipe's notes (~300/480/660/900 Hz; power ~55 %
+  200-500 Hz, ~27 % 500-1k, ~15 % 1-2k), edge around 1.2-2.5 kHz, almost no bass. Our old
+  low "pof" / 60-80 Hz boom were the opposite and are gone. `Backfire.kt`: a burst scheduler +
+  5 two-pole resonators (320-1300 Hz, x `pitch` = (1.6 / pipeMs)^0.3 per style, +-6 % per
+  burst), hit by a 3 ms noise burst + a 1-2.7 kHz crack. Pops: a burst when coasting starts
+  (> 30 % of the rev range), then ~1.3 small bursts/s while coasting; ~6 single small pops/s at
+  the limiter. Bang = burst with a 1.5-1.8 first hit, 0.22 s ring, 1.6x crack; on a throttle
+  snap (> 40 points from > 40 %) and ~0.3/s while coasting. Our demo measured the same way:
+  spacing, fade, ring and brightness match; levels +10-15 dB (clip up to +22, our output can't
+  go louder without clipping). `FxTest.burstIsAFadingRowOfPops`. Not yet heard by Pai.
+  Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
