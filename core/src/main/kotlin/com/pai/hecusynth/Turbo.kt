@@ -77,7 +77,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private fun startTu() {
         val prog = surgeIdx.toDouble() / surgeTotal
         surgeT = 0.0
-        surgeLen = (1.0 / (10.0 - 4.0 * prog)) * (0.9 + 0.2 * rnd())       // ~10 -> 6 a second
+        // ~12.5 -> 7.5 a second (Pai: "faster a bit" than the clips' ~10 -> 6)
+        surgeLen = (1.0 / (12.5 - 5.0 * prog)) * (0.9 + 0.2 * rnd())
         surgeBody.set(850.0 - 300.0 * prog, 2.0, sr)                        // darker each time
         surgeEdge.set(1800.0 - 800.0 * prog, 2.0, sr)
         tuAmp = surgeSize * (1 - 0.55 * prog) * (0.85 + 0.3 * rnd())
@@ -100,7 +101,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         if (flutter && p > 0.4) {
             surgeSize = p
             fStart = 600.0 + 450.0 * p                          // ~1050 Hz after a big pull
-            surgeTotal = (3 + 6 * p).toInt()
+            surgeTotal = (4 + 10 * p).toInt()                   // Pai: "longer a bit": ~1.3 s after a big pull
             surgeIdx = 0
             startTu()
         }

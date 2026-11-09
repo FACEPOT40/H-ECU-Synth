@@ -167,7 +167,10 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   x (1 + 0.04 jitter), 4 harmonics (1, 0.35, 0.15, 0.06), loudness waver (shimmer), VOICE 0.25
   over breath (the old noise bands x BREATH 0.35), floor 0.12, swelling in with each "he" (not
   struck, so not a bell). Measured: 1000 -> 623 Hz over 1 s, pitched 0.87-0.95, peaks
-  680-980 Hz; rhythm unchanged; ~+7-9 dB over coasting. Not yet heard by Pai.
+  680-980 Hz; rhythm unchanged; ~+7-9 dB over coasting.
+  **Pai 9 Nov on `lone_surge.wav`: "This is it", just "faster a bit and longer a bit".** So
+  rate 12.5 -> 7.5 /s (was 10 -> 6) and 4 + 10 x pressure "he"s (was 3 + 6): 13 "he"s over
+  1.27 s, gaps 76-128 ms. Voice, glide, depth unchanged. Keep this sound; tune only on request.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

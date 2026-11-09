@@ -157,8 +157,8 @@ class TurboTest {
         val dips = peaks.zipWithNext { a, b -> env.subList(a, b).min() / minOf(env[a], env[b]) }
         println("surge: %d 'tu's, gaps ms %s, dips %s".format(peaks.size, gaps, dips.joinToString(" ") { "%.2f".format(it) }))
         println("surge loudness every 4 ms: " + env.take(300).joinToString("") { "${(it / top * 9).toInt()}" })
-        assertTrue("'tu's: ${peaks.size}", peaks.size in 4..10)
-        assertTrue("gaps $gaps", gaps.all { it in 80..220 })
+        assertTrue("'tu's: ${peaks.size}", peaks.size in 8..16)
+        assertTrue("gaps $gaps", gaps.all { it in 60..180 })
         assertTrue("dips $dips", dips.all { it < 0.4 })
         System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() }?.let { d -> File(d).mkdirs(); write(File(d, "lone_surge.wav"), x) }
     }
