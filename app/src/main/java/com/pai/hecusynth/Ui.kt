@@ -84,6 +84,7 @@ object Look {
     val BACKGROUND = Color.parseColor("#08090C")
     val TILE = Color.parseColor("#141A22")
     val LINE = Color.parseColor("#232C38")
+    val TRACK_OFF = Color.parseColor("#4A5568")       // an off switch's track: visible on the dark screen
     val BLUE = Color.parseColor("#1976D2")
     val AMBER = Color.parseColor("#FFA000")
     val TEXT = Color.parseColor("#E8EDF3")

@@ -628,6 +628,11 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         setTextColor(Look.TEXT)
         isChecked = on
         setPadding(0, dp(6), 0, dp(2))
+        // the default off look (dark knob on a dark track) vanished on the dark screen: off = a
+        // clear grey knob on a lighter track, on = blue (Pai's screenshots, 9 Nov)
+        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+        thumbTintList = android.content.res.ColorStateList(states, intArrayOf(Look.BLUE, Look.GREY))
+        trackTintList = android.content.res.ColorStateList(states, intArrayOf(0x991976D2.toInt(), Look.TRACK_OFF))
         setOnCheckedChangeListener { _: CompoundButton, v: Boolean -> changed(v) }
     }
 

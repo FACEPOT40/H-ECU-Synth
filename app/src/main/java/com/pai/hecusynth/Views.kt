@@ -32,8 +32,10 @@ class RevMeterView(c: Context) : View(c) {
         val d = resources.displayMetrics.density
         big.textSize = h * 0.42f
         small.textSize = 14 * d
-        cv.drawText("%,d".format(rpm.toInt()), w / 2, h * 0.45f, big)
-        cv.drawText(caption, w / 2, h * 0.45f + 20 * d, small)
+        val numberBase = h * 0.45f
+        cv.drawText("%,d".format(rpm.toInt()), w / 2, numberBase, big)
+        // below the number's lowest point (its comma), so they never overlap at any meter height
+        cv.drawText(caption, w / 2, numberBase + big.descent() + small.textSize + 2 * d, small)
 
         val top = h - 26 * d
         val bot = h - 6 * d
@@ -75,6 +77,7 @@ class ThrottleView(c: Context) : View(c) {
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
     private val r = RectF()
+    private val clip = android.graphics.Path()
     private val pad get() = 14 * resources.displayMetrics.density
 
     @SuppressLint("ClickableViewAccessibility")
@@ -100,10 +103,18 @@ class ThrottleView(c: Context) : View(c) {
         paint.color = Look.TILE
         cv.drawRoundRect(r, 14 * d, 14 * d, paint)
         val shown = external ?: tps
-        val fillTop = (h - pad - (h - 2 * pad) * shown / 100.0).toFloat()
-        r.set(0f, fillTop.coerceAtMost(h - pad), w, h)
-        paint.color = if (shown > 90) Look.RED else Look.AMBER
-        cv.drawRoundRect(r, 14 * d, 14 * d, paint)
+        // 0 % = empty (a strip used to show at the bottom), 100 % = full; clipped to the bar's
+        // rounded shape so a small fill doesn't look like a blob
+        val fillTop = (h * (1 - shown / 100.0)).toFloat()
+        if (shown > 0.5) {
+            clip.reset()
+            clip.addRoundRect(r, 14 * d, 14 * d, android.graphics.Path.Direction.CW)
+            cv.save()
+            cv.clipPath(clip)
+            paint.color = if (shown > 90) Look.RED else Look.AMBER
+            cv.drawRect(0f, fillTop, w, h, paint)
+            cv.restore()
+        }
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 1 * d
         paint.color = Look.LINE
@@ -116,6 +127,8 @@ class ThrottleView(c: Context) : View(c) {
         label.textSize = 11 * d
         label.color = Look.GREY
         cv.drawText(if (external != null) "ECU THROTTLE" else "THROTTLE", w / 2, 52 * d, label)
-        cv.drawText(if (external != null) "from the bike" else "hold + slide up", w / 2, h - 12 * d, label)
+        val hintBase = h - 12 * d
+        label.color = if (fillTop < hintBase - 12 * d) Look.BACKGROUND else Look.GREY   // dark on the fill
+        cv.drawText(if (external != null) "from the bike" else "hold + slide up", w / 2, hintBase, label)
     }
 }

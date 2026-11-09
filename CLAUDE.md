@@ -289,6 +289,12 @@ Debug APK copied to `dist/` (gitignored).
 - Batch files: CRLF (`.gitattributes`), and call Gradle as `"%~dp0gradlew.bat"` (cmd started
   from Claude's shells can't run a bare `gradlew.bat`; harmless for Pai's double-click).
 - A release build can't update a debug install (different signature): uninstall the debug first.
+- **v1.0.1 (9 Nov, phone only; desktop stays 1.0.0, unchanged)**, from Pai's screenshots: off
+  switches were invisible (dark knob on dark track) -> thumb GREY / BLUE, track `Look.TRACK_OFF`
+  / blue 60 %; the rev meter caption overlapped the big number on the Ride tab -> placed at
+  baseline + font descent; the throttle bar showed an orange strip at 0 % and the hint sat on it
+  -> fill 0-100 % of the full height, clipped to the rounded bar, nothing at 0 %, hint dark
+  when the fill is behind it. versionCode 3. When only one app changes, only its version moves.
 
 ## Status
 - 0.1.0 (9 Nov): simulator built and unit-tested; not yet heard on the phone, sounds untuned
