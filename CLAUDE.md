@@ -62,14 +62,23 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   the clip's pops come in BURSTS of 4-9, 25-30 ms apart, fading (+22 -> +12 dB over the
   engine), ringing 200 -> 30 ms, a "pap" at the pipe's notes (~300/480/660/900 Hz; power ~55 %
   200-500 Hz, ~27 % 500-1k, ~15 % 1-2k), edge around 1.2-2.5 kHz, almost no bass. Our old
-  low "pof" / 60-80 Hz boom were the opposite and are gone. `Backfire.kt`: a burst scheduler +
-  5 two-pole resonators (320-1300 Hz, x `pitch` = (1.6 / pipeMs)^0.3 per style, +-6 % per
-  burst), hit by a 3 ms noise burst + a 1-2.7 kHz crack. Pops: a burst when coasting starts
-  (> 30 % of the rev range), then ~1.3 small bursts/s while coasting; ~6 single small pops/s at
-  the limiter. Bang = burst with a 1.5-1.8 first hit, 0.22 s ring, 1.6x crack; on a throttle
-  snap (> 40 points from > 40 %) and ~0.3/s while coasting. Our demo measured the same way:
-  spacing, fade, ring and brightness match; levels +10-15 dB (clip up to +22, our output can't
-  go louder without clipping). `FxTest.burstIsAFadingRowOfPops`. Not yet heard by Pai.
+  low "pof" / 60-80 Hz boom were the opposite and are gone.
+  v2 rang on long, clean resonators with the same notes every pop: Pai, "sounds like a PVC
+  instrument". Measured (spectral flatness 150-4000 Hz, 1 = noise): clip pops 0.034 / 0.024
+  just after, v2 0.030 / 0.010 (too pure a ring). Pure noise tries gave hiss (0.18-0.39) or a
+  dull whump (96 % under 200 Hz); the engine's own pipe comb puts it at 625/1250 Hz instead.
+  v3 (`Backfire.kt`): burst scheduler (pops 28-35 ms apart, each x0.7-0.82, shorter) + per pop
+  a 20-30 ms blast (swells over the first quarter) of noise into (a) five pipe-note resonators
+  320-1300 Hz that ring only ~35 -> 15 ms and get NEW random notes (+-10 %) every pop, (b) two
+  wide filters (450 Hz Q 0.9, 950 Hz Q 1.1) for rough air; plus a 1-2.7 kHz crack and a dark
+  noise "air" tail (no echoes: comb echoes ring). Its `fx` goes in after the engine's
+  saturation; a little of the blast also goes down the engine's pipe (`excite`), and the tone
+  filter opens slightly while it sounds (`open`). Own RNG (`randFx`) so pops never change the
+  engine's random sound. Bang = longer (45 ms), 1.5-1.8 loud, 50 ms ring, 1.8x crack, longer
+  tail. Measured with `FxTest.popProbeWavs` (same coasting run with / without pops,
+  difference = the pops) + the clip: level +12-15 dB (clip median +11.5), flatness 0.05 / 0.04,
+  energy <200 / 200-500 / 500-1k / 1-2k Hz = 1 / 48 / 40 / 10 % (clip 0-7 / 50-64 / 22-30 /
+  13-16). Not yet heard by Pai. Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.

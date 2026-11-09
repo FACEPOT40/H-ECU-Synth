@@ -27,6 +27,11 @@ import kotlin.math.tanh
  * next over the time between readings instead of jumping (a jump would sound like a zipper).
  */
 class Synth(val sampleRate: Int, seed: Long = 7L) {
+    companion object {
+        /** Pop blast level next to the engine's own pulses (1.0 = a full-throttle bang). */
+        const val POP_GAIN = 1.0
+    }
+
     // ---- settings (any thread)
     @Volatile var style: EngineStyle = Styles.ALL[0]
     @Volatile var bike = BikeRange()
@@ -103,13 +108,17 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var lopeTarget = 0.0
     private var lopeTimer = 0
 
-    // ---- pops and bangs: bursts ringing at the pipe's notes (see Backfire)
-    private val backfire = Backfire(sr) { rand01() }
+    // ---- pops and bangs: bursts of rough blasts through the engine's own exhaust (see Backfire)
+    // its own random numbers, so switching pops on or off never changes the engine's own sound
+    private var rngFx = seed * 0x2545F4914F6CDD1DL or 1L
+    private fun randFx(): Double {
+        rngFx = rngFx xor (rngFx shl 13); rngFx = rngFx xor (rngFx ushr 7); rngFx = rngFx xor (rngFx shl 17)
+        return (rngFx ushr 11).toDouble() / (1L shl 53)
+    }
+    private val backfire = Backfire(sr) { randFx() }
     private var wasCoasting = false
     private var lastSpread = 0.0
 
-    // ---- a short echo tail for pops and bangs, so they sound outdoors, not dry
-    private val tail = Tail(sr)
 
     // ---- sound shaping
     private val pipe = DoubleArray((sr * 0.02).toInt() + 2)
@@ -150,7 +159,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         pipe.fill(0.0); pipeLp = 0.0
         body.reset(); intake.reset()
         boost = 0.0; bov = 0.0
-        backfire.pitch = (1.6 / st.pipeMs).pow(0.3)
     }
 
     /** One exhaust pulse, p = 0..1 over its length: quick rise, then a fall that swings a little
@@ -278,17 +286,17 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             // Coasting = the fuel is cut with the throttle shut at high revs (not the limiter).
             val coasting = running && cut && !atLimiter && spread > 0.25
             if (coasting && !wasCoasting && spread > 0.3) {
-                if (crackles) backfire.burst(4 + (rand01() * 6).toInt(), 0.65 + 0.2 * rand01(), 0.15)
+                if (crackles) backfire.burst(4 + (randFx() * 6).toInt(), 0.65 + 0.2 * randFx(), 0.026)
             }
             wasCoasting = coasting
             if (coasting && !backfire.busy) {
-                if (crackles && rand01() < 1.3 / sr) {
-                    backfire.burst(3 + (rand01() * 4).toInt(), 0.35 + 0.3 * rand01(), 0.07 + 0.05 * rand01())
+                if (crackles && randFx() < 1.3 / sr) {
+                    backfire.burst(3 + (randFx() * 4).toInt(), 0.35 + 0.3 * randFx(), 0.02)
                 }
-                if (bangs && rand01() < 0.3 / sr) bang()
+                if (bangs && randFx() < 0.3 / sr) bang()
             }
-            val fx = backfire.next()
-            excite += fx * 0.15                      // a little goes down the pipe too
+            backfire.step()
+            excite += backfire.excite * POP_GAIN     // the blast goes down the engine's own pipe
 
             // 2. exhaust pipe echo (with a little damping in the loop)
             var readIdx = pipeIdx - pipeLen
@@ -302,7 +310,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             if (coefCount-- <= 0) {
                 coefCount = 16
                 val open = if (cut) 0.3 * load else load
-                val fc = (st.toneHz + st.toneLoadHz * open) * (1 + 0.5 * camMix) + 1.5 * fireHz
+                val fc = (st.toneHz + st.toneLoadHz * open) * (1 + 0.5 * camMix) + 1.5 * fireHz +
+                    1500 * backfire.open                 // a pop opens the sound up a little
                 body.set(min(fc, 0.42 * sr), st.resonance, sr)
                 intake.set(min(600 + 2.5 * fireHz, 6000.0), 0.8, sr)
             }
@@ -319,7 +328,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             val hiss = nz - hpLp                     // high-passed noise
 
             var pre = (body.low * 0.85 + y * 0.15) * norm + roar
-            val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load)
+            val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load) * (1 + 0.3 * min(1.0, backfire.open))
             pre = tanh(drv * pre) / tanh(drv)
             if (st.growl > 0) {
                 val cyc = 2 * PI * crank / 720.0
@@ -338,7 +347,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 }
             }
 
-            pre += fx * 0.9 + tail.process(fx) * 0.3
+            pre += backfire.fx * 0.9                 // crack + air tail, after the rasp
 
             // DC blocker, smooth volume, soft limit (never a hard clip)
             val d = pre - dcX + 0.995 * dcY
@@ -348,8 +357,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         }
     }
 
-    /** A backfire bang: a very loud first hit with a long ring and a hard crack, then its pops. */
-    private fun bang() = backfire.burst(6 + (rand01() * 4).toInt(), 1.5 + 0.3 * rand01(), 0.22, crackBoost = 1.6)
+    /** A backfire bang: a very loud, longer first blast with a hard crack and a longer air
+     *  tail, then its burst of pops. */
+    private fun bang() = backfire.burst(6 + (randFx() * 4).toInt(), 1.5 + 0.3 * randFx(), 0.045, crackBoost = 1.8)
 
     private fun fire(c: Int, st: EngineStyle, over: Double, rpmS: Double) {
         // a limiter cut is near silence (that's the "ta" gap); coasting with the fuel cut still
@@ -369,33 +379,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         amp[c] = a
         barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load + lope) * a
         // at the limiter, now and then a small pop in a cut (about 6 a second)
-        if (crackles && cut && atLimiter && !backfire.busy && rand01() < 6.0 / st.firingHz(rpmS)) {
-            backfire.burst(1, 0.3 + 0.2 * rand01(), 0.04)
+        if (crackles && cut && atLimiter && !backfire.busy && randFx() < 6.0 / st.firingHz(rpmS)) {
+            backfire.burst(1, 0.3 + 0.2 * randFx(), 0.015)
         }
-    }
-}
-
-/**
- * A short outdoor-style echo tail (three damped echoes of 23-41 ms), used only on pops and
- * bangs so they ring out a little instead of sounding dry and clicky.
- */
-class Tail(sr: Double) {
-    private val lens = intArrayOf((0.023 * sr).toInt(), (0.031 * sr).toInt(), (0.041 * sr).toInt())
-    private val bufs = Array(3) { DoubleArray(lens[it]) }
-    private val idx = IntArray(3)
-    private val lp = DoubleArray(3)
-
-    fun process(x: Double): Double {
-        var out = 0.0
-        for (k in 0 until 3) {
-            val b = bufs[k]
-            val old = b[idx[k]]
-            lp[k] += (old - lp[k]) * 0.35            // each echo a bit duller
-            b[idx[k]] = x + 0.55 * lp[k]
-            idx[k] = (idx[k] + 1) % b.size
-            out += old
-        }
-        return out / 3
     }
 }
 
