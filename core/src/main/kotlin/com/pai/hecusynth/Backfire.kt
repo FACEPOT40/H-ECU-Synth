@@ -4,31 +4,28 @@ import kotlin.math.exp
 import kotlin.math.tanh
 
 /**
- * Exhaust pops and backfire bangs.
+ * Exhaust pops and backfire bangs: one blast each.
  *
- * Built from measurements of two references Pai sent (9 Nov; measured only, never copied or
- * shipped): a pops-and-bangs video and a clean "Bang" sound effect.
- *  - Timing (video): BURSTS of 4-9 pops ~28-35 ms apart, the first loudest, each next softer.
- *  - Each blast (bang SFX): full level within 0.2 ms; HOLDS flat-out loud (~85 ms for a bang),
- *    heavily clipped (42 % of the first 80 ms near full scale: dense, raw); then dies fast
- *    (-11 dB at 120 ms, -28 at 200, -46 at 300); 75-85 % of the energy at 500-2000 Hz, almost
- *    no bass; a bright 2-4 kHz crack in the first ~5 ms.
+ * The blast is modelled on a clean "Bang" sound effect Pai sent (9 Nov; measured only, never
+ * copied or shipped): full level within 0.2 ms; HOLDS flat-out loud (~85 ms), heavily clipped
+ * (dense, raw); then dies fast (-11 dB at 120 ms, -28 at 200, -46 at 300); 75-85 % of the
+ * energy at 500-2000 Hz, almost no bass; a bright 2-4 kHz crack in the first ~5 ms.
  * So a blast = noise centred on ~1 kHz, driven hard into clipping, under a hold-then-fade
- * envelope, with a crack at the front. Pops are the same thing, much shorter.
+ * envelope, with a crack at the front. Pai: the bang is right.
  *
- * Earlier tries Pai rejected by ear: tuned resonators ("PVC instrument", "RimbaTubes"), then
- * a low thumping engine pulse and a thin 5 ms crack ("sound like a fart").
+ * A pop is the same blast, shorter and softer (Pai: 6-18 ms was "too short"; now ~25-40 ms).
+ * Each is a SINGLE blast, with a short quiet gap after it before the next can start: the
+ * earlier bursts of quick pops after each bang came out as a "brbrbr" Pai didn't want.
+ *
+ * Earlier tries Pai rejected by ear: tuned resonators ("PVC instrument", "RimbaTubes"), a low
+ * thumping engine pulse and a thin 5 ms crack ("sound like a fart"), bursts after the bang.
  */
 class Backfire(private val sr: Double, private val rnd: () -> Double) {
-    private var left = 0            // pops still to come in this burst
-    private var timer = 0
-    private var amp = 0.0           // loudness of the next blast
-    private var big = false         // the next blast is a bang
-
     private var level = 0.0         // this blast's loudness
     private var holdLeft = 0        // samples left at full level
     private var env = 0.0
     private var release = 0.0
+    private var quietLeft = 0       // samples until the next blast may start
     private var crack = 0.0
     private val crackDecay = exp(-1.0 / (0.003 * sr))
     private val band = Svf().apply { set(750.0, 0.7, sr) }      // ~500-2000 Hz once clipped
@@ -40,34 +37,26 @@ class Backfire(private val sr: Double, private val rnd: () -> Double) {
     var fx = 0.0
         private set
 
-    val busy get() = left > 0
+    /** A blast is sounding, or it's too soon after one for the next. */
+    val busy get() = quietLeft > 0
 
-    /** Starts a burst of [count] blasts, the first [first] loud. [bang] makes the first one a
-     *  full bang (long hold); its pops follow after it. A burst already running is only
-     *  replaced by a louder one. */
-    fun burst(count: Int, first: Double, bang: Boolean = false) {
-        if (left > 0 && first <= amp) return
-        left = count
-        timer = 0
-        amp = first
-        big = bang
+    /** One blast of loudness [loud]: a pop, or with [bang] a full bang. While [busy] a pop is
+     *  skipped; a bang always goes (it replaces a pop that's still sounding). */
+    fun blast(loud: Double, bang: Boolean = false) {
+        if (busy && !bang) return
+        val holdS = if (bang) 0.085 else 0.025 + 0.015 * minOf(1.0, loud)   // pops: 25-40 ms
+        val tau = if (bang) 0.045 else 0.022
+        level = loud
+        env = 1.0
+        holdLeft = (holdS * sr).toInt()
+        release = exp(-1.0 / (tau * sr))
+        crack = loud
+        // quiet gap: the blast has to die down first (~5 x its fade), then a little more
+        quietLeft = ((holdS + 5 * tau + 0.05 + 0.1 * rnd()) * sr).toInt()
     }
 
     fun step() {
-        if (left > 0 && --timer <= 0) {
-            val holdS = if (big) 0.085 else 0.006 + 0.012 * minOf(1.0, amp)   // pops: 6-18 ms
-            val tau = if (big) 0.045 else 0.009
-            level = amp
-            env = 1.0
-            holdLeft = (holdS * sr).toInt()
-            release = exp(-1.0 / (tau * sr))
-            crack = amp
-            left--
-            amp *= 0.7 + 0.12 * rnd()
-            // next one 28-35 ms on (video); after a bang, once the bang has died down
-            timer = (((if (big) holdS + 0.06 else 0.0) + 0.028 + 0.007 * rnd()) * sr).toInt()
-            big = false
-        }
+        if (quietLeft > 0) quietLeft--
         if (env < 1e-4) { fx = 0.0; return }
 
         if (holdLeft > 0) holdLeft-- else env *= release

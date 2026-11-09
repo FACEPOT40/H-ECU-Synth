@@ -283,13 +283,11 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             // Coasting = the fuel is cut with the throttle shut at high revs (not the limiter).
             val coasting = running && cut && !atLimiter && spread > 0.25
             if (coasting && !wasCoasting && spread > 0.3) {
-                if (crackles) backfire.burst(4 + (randFx() * 6).toInt(), 0.65 + 0.2 * randFx())
+                if (crackles) backfire.blast(0.7 + 0.15 * randFx())
             }
             wasCoasting = coasting
             if (coasting && !backfire.busy) {
-                if (crackles && randFx() < 1.3 / sr) {
-                    backfire.burst(3 + (randFx() * 4).toInt(), 0.35 + 0.3 * randFx())
-                }
+                if (crackles && randFx() < 1.5 / sr) backfire.blast(0.45 + 0.3 * randFx())
                 if (bangs && randFx() < 0.3 / sr) bang()
             }
             backfire.step()
@@ -352,8 +350,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         }
     }
 
-    /** A backfire bang: one long, flat-out blast, then its burst of pops. */
-    private fun bang() = backfire.burst(6 + (randFx() * 4).toInt(), 1.5 + 0.3 * randFx(), bang = true)
+    /** A backfire bang: one long, flat-out blast (nothing after it). */
+    private fun bang() = backfire.blast(1.5 + 0.3 * randFx(), bang = true)
 
     private fun fire(c: Int, st: EngineStyle, over: Double, rpmS: Double) {
         // a limiter cut is near silence (that's the "ta" gap); coasting with the fuel cut still
@@ -374,7 +372,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load + lope) * a
         // at the limiter, now and then a small pop in a cut (about 6 a second)
         if (crackles && cut && atLimiter && !backfire.busy && randFx() < 6.0 / st.firingHz(rpmS)) {
-            backfire.burst(1, 0.3 + 0.2 * randFx())
+            backfire.blast(0.3 + 0.2 * randFx())
         }
     }
 }

@@ -53,18 +53,25 @@ class FxTest {
         assertTrue("lope changed the sound at 8,000 rpm: $a -> $b", abs(a - b) / a < 0.05)
     }
 
-    /** A burst, like the reference clip: several blasts 25-33 ms apart, each softer than the
-     *  last, then quiet. */
-    @Test fun burstIsAFadingRowOfPops() {
+    /** One blast, then silence: nothing trails a bang (the old bursts made a "brbrbr"), and a
+     *  pop asked for while one still sounds is skipped. A pop lasts ~25-40 ms at full level. */
+    @Test fun singleBlastThenQuiet() {
         var r = 0x2545F4914F6CDD1DL
         val bf = Backfire(48000.0) { r = r xor (r shl 13); r = r xor (r ushr 7); r = r xor (r shl 17); (r ushr 11).toDouble() / (1L shl 53) }
-        bf.burst(6, 1.0)
-        val x = DoubleArray(sr / 2) { bf.step(); bf.fx }
-        val hits = x.toList().chunked(1392).map { ch -> ch.maxOf { abs(it) } }   // 29 ms slots
-        println("burst peaks per 29 ms: " + hits.take(10).joinToString(" ") { "%.2f".format(it) })
-        assertTrue("first pop peak ${hits[0]}", hits[0] in 0.5..3.0)      // body ~1 + the crack spike
-        assertTrue("later pops softer", hits[4] < hits[0] * 0.8)
-        assertTrue("quiet after the burst", hits.last() < 0.01)
+        for (bang in listOf(true, false)) {
+            bf.blast(1.0, bang)
+            val x = DoubleArray(sr) { i -> if (i == 2400) bf.blast(0.8); bf.step(); bf.fx }   // a pop asked for 50 ms in
+            val loud = x.toList().chunked(480).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }  // every 10 ms
+            println((if (bang) "bang" else "pop ") + " loudness every 10 ms: " + loud.take(30).joinToString(" ") { "%.2f".format(it) })
+            val peak = loud.max()
+            val after = loud.drop(if (bang) 35 else 20)
+            assertTrue("something after the ${if (bang) "bang" else "pop"}: ${after.max()}", after.max() < peak * 0.01)
+            if (!bang) {
+                val held = loud.takeWhile { it > peak * 0.5 }.size
+                assertTrue("pop held only $held x 10 ms", held >= 3)
+            }
+            repeat(sr) { bf.step() }                   // let it rest before the next case
+        }
     }
 
     /** Two identical coasting runs, with and without pops, written for measuring the pops alone
@@ -95,7 +102,7 @@ class FxTest {
         var r = 0x2545F4914F6CDD1DL
         for ((name, bang) in listOf("lone_bang" to true, "lone_pop" to false)) {
             val bf = Backfire(48000.0) { r = r xor (r shl 13); r = r xor (r ushr 7); r = r xor (r shl 17); (r ushr 11).toDouble() / (1L shl 53) }
-            bf.burst(1, if (bang) 1.0 else 0.7, bang)
+            bf.blast(if (bang) 1.0 else 0.7, bang)
             val pcm = FloatArray(sr) { bf.step(); bf.fx.toFloat() }
             val bb = java.nio.ByteBuffer.allocate(44 + pcm.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
             bb.put("RIFF".toByteArray()).putInt(36 + pcm.size * 2).put("WAVE".toByteArray())

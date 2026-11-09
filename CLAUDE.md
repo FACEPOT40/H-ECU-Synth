@@ -84,7 +84,14 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   a bang its pops start ~60 ms after the hold. `FxTest.loneBangWav` writes `lone_bang.wav` /
   `lone_pop.wav` (no engine) to compare. Measured: envelope -7/-13/-29/-49 dB at 80/120/200/
   300 ms; 500-2000 Hz 72-82 %; flatness 0.09-0.13; rms/peak 0.59; onset 2-4k 10 %, 4-16k 15 %
-  (a bit brighter than the reference's top). Not yet heard by Pai.
+  (a bit brighter than the reference's top). Pai 9 Nov: lone bang "correct"; lone pop "too
+  short"; the bursts of quick pops after each bang = a weird "brbrbr", "just a bang is fine".
+  So (v5.1): no bursts at all, `Backfire.blast(loud, bang)` = ONE blast; pops hold 25-40 ms
+  (by loudness), fade tau 22 ms (bang 85 / 45 ms unchanged); after each blast a quiet gap
+  (hold + 5 x tau + 50-150 ms) before the next; a pop asked for meanwhile is skipped, a bang
+  always goes. Triggers: pops = one when coasting starts, then ~1.5/s while coasting, ~6/s
+  chances at the limiter; bangs = throttle snap + ~0.3/s while coasting.
+  `FxTest.singleBlastThenQuiet`. New pop length / no-bursts not yet heard by Pai.
   Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
