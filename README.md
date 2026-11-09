@@ -7,9 +7,16 @@ Every sound is made from scratch while you ride (no recordings): a virtual crank
 each cylinder at the right angle, and the exhaust pulses are shaped by a pipe echo and a tone
 filter that opens with the throttle.
 
-**Status: 0.1.0.** Simulator (rev with the on-screen throttle) and Bike mode: connects to the
+**Version 1.0.0.** Simulator (rev with the on-screen throttle) and Bike mode: connects to the
 ECU with the same FTDI K-line cable as H-ECU Logger and plays from the real rpm and throttle,
-with the screen off too. Bike mode is built and tested with a fake ECU, not yet on the bike.
+with the screen off too. Tested on a Honda Wave 125i.
+
+## Screenshots
+
+| Ride | Sound | Tune |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/ride.jpg" width="250" alt="Ride tab: rpm, volume and quick on/off buttons"> | <img src="docs/screenshots/sound.jpg" width="250" alt="Sound tab: engine, turbo and blow-off settings"> | <img src="docs/screenshots/tune.jpg" width="250" alt="Tune tab: per-style sound sliders"> |
+| Revving in the simulator, quick on/off for engine, turbo, blow-off, flutter, pops and bangs | Engine, turbo, blow-off and flutter settings | Per-style sound sliders, saved on the phone |
 
 The K-line link is **read-only**: it only sends wake-up, init and live-data queries, never
 anything that writes to the ECU.
