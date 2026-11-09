@@ -7,8 +7,12 @@ Every sound is made from scratch while you ride (no recordings): a virtual crank
 each cylinder at the right angle, and the exhaust pulses are shaped by a pipe echo and a tone
 filter that opens with the throttle.
 
-**Status: 0.1.0, simulator only.** Pick a style, start the engine and rev it with the on-screen
-throttle. The bike connection (K-line, read-only) comes next.
+**Status: 0.1.0.** Simulator (rev with the on-screen throttle) and Bike mode: connects to the
+ECU with the same FTDI K-line cable as H-ECU Logger and plays from the real rpm and throttle,
+with the screen off too. Bike mode is built and tested with a fake ECU, not yet on the bike.
+
+The K-line link is **read-only**: it only sends wake-up, init and live-data queries, never
+anything that writes to the ECU.
 
 ## Engine styles
 1-cyl · 90° V-twin · I4 superbike (flat-plane) · I4 crossplane · V6 turbo · V8 · V10

@@ -1,9 +1,18 @@
 package com.pai.hecusynth
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.hardware.usb.UsbManager
+import android.os.Build
 import android.os.Bundle
 import android.view.Choreographer
 import android.view.Gravity
@@ -23,13 +32,16 @@ import android.widget.Toast
  * 0.1.0: the simulator. Pick a style, start the engine, hold the throttle and rev it.
  * "Tune" swaps the switches for the same sound sliders as the desktop app (shared [Tuning]),
  * saved on the phone per style; the meter and throttle stay, so you can rev while tuning.
- * Later the same screen gets a K-line source next to the simulator.
+ * Source: Simulator (the on-screen throttle) or Bike (the ECU over the K-line, read-only, via
+ * [SynthService] so the sound keeps going with the screen off).
  */
 class MainActivity : Activity(), Choreographer.FrameCallback {
-    private lateinit var synth: Synth
-    private var audio: AudioOut? = null
+    private val synth get() = Core.synth
     private val sim = EngineSim()
-    private val bike = BikeRange(sim.idle, sim.limiter)
+    private var bike = BikeRange()
+    private var bikeMode = false                  // source: false = Simulator, true = Bike (K-line)
+    private lateinit var sourceButton: Button
+    private lateinit var rangeButton: Button
 
     private lateinit var meter: RevMeterView
     private lateinit var info: TextView
@@ -56,7 +68,11 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val saved = tunePrefs.all.mapValues { it.value.toString() }
         Styles.ALL.forEach { tuned[it.id] = Tuning.load(it, saved) }
-        synth = Synth(AudioOut.nativeRate()).apply {
+        bike = BikeRange(prefs.getInt("bike_idle", 1400).toDouble(), prefs.getInt("bike_redline", 9500).toDouble())
+        sim.idle = bike.idle
+        sim.limiter = bike.redline
+        bikeMode = prefs.getString("source", "sim") == "bike"
+        synth.apply {
             bike = this@MainActivity.bike
             style = tuned[prefs.getString("style", null)] ?: tuned.getValue(Styles.ALL[0].id)
             volume = prefs.getInt("volume", 70) / 100.0
@@ -74,6 +90,13 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
         showStyle()
+        showSource()
+        registerReceiver(usbPermission, IntentFilter(ACTION_USB_PERMISSION), Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(usbPermission)
+        super.onDestroy()
     }
 
     private fun buildUi(): LinearLayout {
@@ -88,7 +111,9 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         top.addView(uiText(20f, Look.TEXT, "H-ECU Synth").apply {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         })
-        top.addView(uiText(13f, Look.AMBER, "  Simulator"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        top.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        sourceButton = uiButton("Simulator") { toggleSource() }
+        top.addView(sourceButton)
         tuneButton = uiButton("Tune") { toggleTuning() }
         top.addView(tuneButton)
         top.addView(uiButton("ⓘ") { about() })
@@ -116,8 +141,10 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         tunePanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        engineButton = uiButton("Start engine", Tone.RECORD) { toggleEngine() }
+        engineButton = uiButton("Start engine", Tone.RECORD) { if (bikeMode) toggleBike() else toggleEngine() }
         controls.addView(engineButton, LinearLayout.LayoutParams(MATCH_PARENT, dp(56)))
+        rangeButton = uiButton("") { chooseRange() }
+        controls.addView(rangeButton, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
 
         controls.addView(uiText(13f, Look.GREY, "Volume").apply { setPadding(0, dp(10), 0, 0) })
         controls.addView(seek(100, prefs.getInt("volume", 70)) { v ->
@@ -336,15 +363,107 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         meter.invalidate()
     }
 
+    // ------------------------------------------------------------ source: Simulator or Bike
+
+    private fun toggleSource() {
+        if (Core.connected) {
+            Toast.makeText(this, "Disconnect from the bike first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (sim.running) toggleEngine()
+        bikeMode = !bikeMode
+        prefs.edit().putString("source", if (bikeMode) "bike" else "sim").apply()
+        if (bikeMode) Core.stopAudio("screen") else Core.startAudio("screen")
+        synth.set(0.0, 0.0, true)
+        showSource()
+    }
+
+    private fun showSource() {
+        sourceButton.text = if (bikeMode) "Bike (K-line)" else "Simulator"
+        sourceButton.tone(if (bikeMode) Tone.PRIMARY else Tone.PLAIN)
+        throttle.external = if (bikeMode) 0.0 else null
+        throttle.invalidate()
+        rangeButton.text = "Bike rev range: idle %,d · limiter %,d rpm".format(bike.idle.toInt(), bike.redline.toInt())
+        when {
+            bikeMode && Core.connected -> { engineButton.text = "Disconnect"; engineButton.tone(Tone.STOP) }
+            bikeMode -> { engineButton.text = "Connect to bike"; engineButton.tone(Tone.PRIMARY) }
+            sim.running -> { engineButton.text = "Stop engine"; engineButton.tone(Tone.STOP) }
+            else -> { engineButton.text = "Start engine"; engineButton.tone(Tone.RECORD) }
+        }
+    }
+
+    private fun toggleBike() {
+        if (Core.connected) {
+            startService(Intent(this, SynthService::class.java).setAction(SynthService.ACTION_DISCONNECT))
+            Core.connected = false
+            showSource()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)   // for the "connected" notice
+        }
+        val usb = getSystemService(USB_SERVICE) as UsbManager
+        val device = com.hoho.android.usbserial.driver.UsbSerialProber.getDefaultProber()
+            .findAllDrivers(usb).firstOrNull()?.device
+        when {
+            device == null -> Toast.makeText(this, "Cable not found. Plug the K-line cable into the phone (OTG).", Toast.LENGTH_LONG).show()
+            usb.hasPermission(device) -> startBike()
+            else -> usb.requestPermission(device, PendingIntent.getBroadcast(this, 0,
+                Intent(ACTION_USB_PERMISSION).setPackage(packageName), PendingIntent.FLAG_MUTABLE))
+        }
+    }
+
+    private val usbPermission = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) {
+            if (i.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) startBike()
+            else Toast.makeText(c, "No permission for the cable", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startBike() {
+        Core.connected = true
+        Core.status = "Connecting"
+        startForegroundService(Intent(this, SynthService::class.java).setAction(SynthService.ACTION_CONNECT))
+        showSource()
+    }
+
+    /** The bike's own idle and rev limiter: they map onto each style's range, and the synth's
+     *  limiter stutter starts near the limiter. */
+    private fun chooseRange() {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
+        var idle = bike.idle.toInt()
+        var red = bike.redline.toInt()
+        val idleText = uiText(14f, Look.TEXT)
+        val redText = uiText(14f, Look.TEXT)
+        fun show() {
+            idleText.text = "Idle: %,d rpm".format(idle)
+            redText.text = "Rev limiter: %,d rpm".format(red)
+        }
+        show()
+        box.addView(idleText)
+        box.addView(seek(34, (idle - 800) / 50) { v -> idle = 800 + v * 50; show() })   // 800-2,500
+        box.addView(redText)
+        box.addView(seek(80, (red - 6000) / 100) { v -> red = 6000 + v * 100; show() })  // 6,000-14,000
+        AlertDialog.Builder(this)
+            .setTitle("Bike rev range")
+            .setView(box)
+            .setPositiveButton("OK") { _, _ ->
+                bike = BikeRange(idle.toDouble(), red.toDouble())
+                synth.bike = bike
+                sim.idle = bike.idle
+                sim.limiter = bike.redline
+                prefs.edit().putInt("bike_idle", idle).putInt("bike_redline", red).apply()
+                showSource()
+                showCam()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun toggleEngine() {
         if (sim.running) sim.stop() else sim.start()
-        if (sim.running) {
-            engineButton.text = "Stop engine"
-            engineButton.tone(Tone.STOP)
-        } else {
-            engineButton.text = "Start engine"
-            engineButton.tone(Tone.RECORD)
-        }
+        showSource()
     }
 
     private fun about() {
@@ -352,8 +471,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             .setTitle("H-ECU Synth " + packageManager.getPackageInfo(packageName, 0).versionName)
             .setMessage(
                 "Engine sound made from scratch, driven by your bike's revs and throttle.\n\n" +
-                    "This version is the simulator only: no bike connection yet. The K-line link " +
-                    "will be read-only, like H-ECU Logger: it only reads data, never writes to the ECU.\n\n" +
+                    "Bike mode reads the ECU over the K-line cable, read-only like H-ECU Logger: it only " +
+                    "asks for live data (rpm, throttle, injector), never writes to the ECU.\n\n" +
                     "Ride safe: keep the volume low enough to hear traffic.\n\n" +
                     "Not affiliated with or endorsed by Honda. Engine names describe engine layouts only.\n\n" +
                     "License: GPL-3.0\nMade by FACEPOT40 (ปาย)"
@@ -367,13 +486,18 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     override fun doFrame(now: Long) {
         val dt = if (lastFrame == 0L) 0.016 else ((now - lastFrame) / 1e9).coerceIn(0.0, 0.05)
         lastFrame = now
+        val st = synth.style
+        if (bikeMode) {
+            frameBike(st)
+            Choreographer.getInstance().postFrameCallback(this)
+            return
+        }
         sim.step(dt, throttle.tps)
         sinceSend += dt
         if (!bikeRate || sinceSend >= 1 / 17.7) {
             sinceSend = 0.0
             synth.set(sim.rpm, throttle.tps, sim.fuelCut)
         }
-        val st = synth.style
         meter.rpm = bike.toStyle(sim.rpm, st)
         meter.camHigh = synth.camHigh
         meter.caption = "rpm · ${st.name}"
@@ -386,17 +510,40 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         Choreographer.getInstance().postFrameCallback(this)
     }
 
+    /** Bike mode: show what the ECU sends (the service feeds the synth, even screen-off). */
+    private fun frameBike(st: EngineStyle) {
+        val s = Core.sample
+        val fresh = s != null && System.currentTimeMillis() - Core.sampleAt < 1000
+        meter.rpm = if (fresh) bike.toStyle(s!!.rpm, st) else 0.0
+        meter.camHigh = synth.camHigh
+        meter.caption = "rpm · ${st.name}"
+        meter.invalidate()
+        throttle.external = if (fresh) s!!.tpsPct else 0.0
+        throttle.invalidate()
+        info.text = when {
+            !Core.connected -> "Bike: not connected"
+            fresh -> "%s · bike %,d rpm · throttle %d %% · %.0f readings/s%s".format(
+                Core.status, s!!.rpm.toInt(), s.tpsPct.toInt(), Core.readingsPerSecond,
+                if (synth.limiting) " · LIMITER" else if (s.fuelCut) " · fuel cut" else "")
+            else -> Core.status
+        }
+        if (Core.connected != (engineButton.text == "Disconnect")) showSource()
+    }
+
     override fun onResume() {
         super.onResume()
-        audio = AudioOut(synth).also { it.start() }
+        if (!bikeMode) Core.startAudio("screen")         // Bike mode: the service plays it
         lastFrame = 0L
         Choreographer.getInstance().postFrameCallback(this)
     }
 
     override fun onPause() {
         Choreographer.getInstance().removeFrameCallback(this)
-        audio?.stop()
-        audio = null
+        Core.stopAudio("screen")
         super.onPause()
+    }
+
+    companion object {
+        private const val ACTION_USB_PERMISSION = "com.pai.hecusynth.USB_PERMISSION"
     }
 }

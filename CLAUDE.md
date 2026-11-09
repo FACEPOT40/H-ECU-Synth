@@ -15,10 +15,12 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
 - No recordings: everything is procedural.
 - Simulator first, so sounds can be tried without the bike.
 
-## Hard rules (when the K-line link is added)
-- **Read-only, same as H-ECU Logger**: only wake (`FE 04 72 8C`), init (`72 05 00 F0 99`) and
-  table queries (`72 05 71 <table> <cs>`), each 5 bytes with a correct checksum. Copy
-  `Protocol.kt` / `KLine.kt` from the logger with its whitelist. Never write / flash / clear codes.
+## Hard rules
+- **Read-only, narrower than H-ECU Logger**: only wake (`FE 04 72 8C`), init (`72 05 00 F0 99`)
+  and live-data table queries (`72 05 71 <table> <cs>`), each checked by
+  `Protocol.requireAllowed` (core/Protocol.kt). The logger's fault-code reads (0x74 / 0x73) are
+  NOT in this app. Never add write / flash / clear-codes / security access, never widen the
+  whitelist without Pai's explicit decision. `BikeLinkTest` checks the blocked list.
 - Only one app can use the cable at a time, so the synth can't run next to the logger.
 - No Honda branding (wing, logos); the About says "not affiliated with Honda".
 
@@ -221,6 +223,30 @@ crank for every style, throttle makes it louder; and writes `app/build/demo-wav/
 (start, idle, blip, flat out into the limiter, let go, stop) to listen to on the PC, plus
 `<style>_pops.wav` with the pops on.
 Debug APK copied to `dist/` (gitignored).
+
+## Bike (K-line), added 9 Nov
+- `core/Protocol.kt`: whitelist, `Link`, `EcuSample.decode17` (rpm d0-1, TPS d3 / 1.6 clamped
+  0-100, injector d11-12 / (65535 / 265.5) ms; fuel cut = injector 0 above 1,500 rpm, the
+  logger's RideSummary rule), `EcuPoller` (wake, init, then only table 0x17 as fast as replies
+  come; 300 ms reply timeout, 3 misses -> re-wake, retries after errors: the logger's settings).
+  Plain Kotlin (testable; the desktop could use it later with a serial library).
+- `app/KLine.kt`: copied from the logger (FTDI via usb-serial-for-android 3.11.0, jitpack;
+  read-side purge after the wake break, latency timer 1). `res/xml/device_filter.xml` FTDI.
+- `Core.kt`: the one Synth for the app + audio users ("screen" in Simulator mode, "bike" from
+  the service) + live bike state. `SynthService.kt`: foreground service (connectedDevice |
+  mediaPlayback, partial wake lock, notification) runs the poller and feeds `Core.synth`, so
+  the sound keeps going with the screen off.
+- Screen: top-bar source button "Simulator" / "Bike (K-line)" (pref `source`, can't switch
+  while connected); in Bike mode the big button is "Connect to bike" / "Disconnect" (asks USB
+  permission, and POST_NOTIFICATIONS on Android 13+), meter + throttle bar ("ECU THROTTLE",
+  touches ignored) follow the ECU, info line = status, rpm, throttle, readings/s, LIMITER /
+  fuel cut. "Bike rev range" button: idle 800-2,500 and rev limiter 6,000-14,000 (prefs
+  `bike_idle` / `bike_redline`, default 1,400 / 9,500) -> `BikeRange`, the simulator, and the
+  synth's limiter stutter (starts 250 rpm under the limiter).
+- `BikeLinkTest`: blocked messages, decode vs the logger's vectors, fuel cut, poller with a
+  fake ECU (only wake / init / 0x17 sent, reconnects after silence).
+- NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
+  instead of three); check the "readings/s" on the bike.
 
 ## Status
 - 0.1.0 (9 Nov): simulator built and unit-tested; not yet heard on the phone, sounds untuned

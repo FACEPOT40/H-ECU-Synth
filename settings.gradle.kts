@@ -10,6 +10,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io")   // usb-serial-for-android (the FTDI cable), same as H-ECU Logger
     }
 }
 rootProject.name = "HECUSynth"

@@ -65,6 +65,8 @@ class RevMeterView(c: Context) : View(c) {
 class ThrottleView(c: Context) : View(c) {
     var tps = 0.0
         private set
+    /** Bike mode: the ECU's throttle, shown instead (touches are ignored). */
+    var external: Double? = null
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -77,6 +79,7 @@ class ThrottleView(c: Context) : View(c) {
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (external != null) return false
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 tps = ((height - pad - e.y) / (height - 2 * pad) * 100.0).coerceIn(0.0, 100.0)
@@ -96,9 +99,10 @@ class ThrottleView(c: Context) : View(c) {
         paint.style = Paint.Style.FILL
         paint.color = Look.TILE
         cv.drawRoundRect(r, 14 * d, 14 * d, paint)
-        val fillTop = (h - pad - (h - 2 * pad) * tps / 100.0).toFloat()
+        val shown = external ?: tps
+        val fillTop = (h - pad - (h - 2 * pad) * shown / 100.0).toFloat()
         r.set(0f, fillTop.coerceAtMost(h - pad), w, h)
-        paint.color = if (tps > 90) Look.RED else Look.AMBER
+        paint.color = if (shown > 90) Look.RED else Look.AMBER
         cv.drawRoundRect(r, 14 * d, 14 * d, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 1 * d
@@ -108,10 +112,10 @@ class ThrottleView(c: Context) : View(c) {
 
         label.textSize = 22 * d
         label.color = Look.TEXT
-        cv.drawText("%d %%".format(tps.toInt()), w / 2, 34 * d, label)
+        cv.drawText("%d %%".format(shown.toInt()), w / 2, 34 * d, label)
         label.textSize = 11 * d
         label.color = Look.GREY
-        cv.drawText("THROTTLE", w / 2, 52 * d, label)
-        cv.drawText("hold + slide up", w / 2, h - 12 * d, label)
+        cv.drawText(if (external != null) "ECU THROTTLE" else "THROTTLE", w / 2, 52 * d, label)
+        cv.drawText(if (external != null) "from the bike" else "hold + slide up", w / 2, h - 12 * d, label)
     }
 }
