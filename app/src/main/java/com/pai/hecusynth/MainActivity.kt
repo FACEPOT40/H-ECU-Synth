@@ -49,7 +49,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
             bangs = prefs.getBoolean("bangs", false)
             turbo = prefs.getBoolean("turbo", false)
-            flutter = prefs.getBoolean("flutter", false)
             blowOff = prefs.getBoolean("blow_off", false)
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
@@ -127,10 +126,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(switch("Turbo", synth.turbo) { on ->
             synth.turbo = on
             prefs.edit().putBoolean("turbo", on).apply()
-        })
-        controls.addView(switch("Turbo flutter", synth.flutter) { on ->
-            synth.flutter = on
-            prefs.edit().putBoolean("flutter", on).apply()
         })
         controls.addView(switch("Blow-off valve", synth.blowOff) { on ->
             synth.blowOff = on

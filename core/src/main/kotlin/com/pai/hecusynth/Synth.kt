@@ -38,7 +38,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var bangs = false             // backfire bangs: an extra, off by default
     // turbo extras, each its own switch, off by default (the V6 style has its whistle anyway)
     @Volatile var turbo = false             // turbo whistle
-    @Volatile var flutter = false           // turbo flutter when the throttle snaps shut
     @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
 
     // ---- read back for the screen
@@ -131,9 +130,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var outGain = 0.0
     private var coefCount = 0
 
-    // ---- turbo whistle, flutter, blow-off (see Turbo); uses the pops' random numbers so it
+    // ---- turbo whistle and blow-off (see Turbo); uses the pops' random numbers so it
     // never changes the engine's own sound
-    internal val turboFx by lazy { Turbo(sr) { randFx() } }   // internal: tests set its knobs
+    private val turboFx by lazy { Turbo(sr) { randFx() } }
 
     private val barkDecay = exp(-1.0 / (0.0025 * sr))
 
@@ -189,8 +188,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             rampLeft = len
             val tps = inTps.coerceIn(0.0, 100.0)
             targetLoad = tps / 100.0
-            // throttle snapped shut: the turbo lets its boost out (blow-off and / or flutter)
-            if (lastTps - tps > 30) turboFx.snap(blowOff, flutter)
+            // throttle snapped shut: the blow-off valve lets the boost out
+            if (lastTps - tps > 30) turboFx.snap(blowOff)
             // throttle snapped shut from high revs: a big bang leading a burst of pops
             if (bangs && lastTps - tps > 40 && lastSpread > 0.4) bang()
             lastTps = tps

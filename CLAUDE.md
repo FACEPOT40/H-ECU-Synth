@@ -95,58 +95,24 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   pop length, no bursts). Keep this sound; tune only on request.
   Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
-- Turbo extras (9 Nov, Pai: "add turbo sound for fun", flutter and blow-off "as individual
-  enable"): `Turbo.kt`, switches `Synth.turbo` / `flutter` / `blowOff` ("Turbo", "Turbo
-  flutter", "Blow-off valve"; desktop checkboxes, phone switches + prefs, all off by default;
-  the V6 style keeps its whistle via `EngineStyle.turbo`). Built from two clips Pai sent (HKS
-  blow-off on a GC8 Impreza, a "TURBO flutter" clip; measured only, never shipped):
-  whistle = clean tone 3 -> 7.7 kHz spooling up in ~0.8 s, down to ~2.6 kHz in ~1.2 s;
-  flutter = low air chuffs (< 1 kHz, big swing) ~35-40/s slowing to ~12/s, whistle chopped;
-  blow-off = narrow ~6.5 kHz "tsss" (80-90 % in ~150 Hz), up in 15-20 ms, chattering fade
-  ~150 ms. Model: turbo `speed` (target from revs x throttle, up tau 0.6 s, down 0.45 s;
+- Turbo extras (9 Nov, Pai: "add turbo sound for fun"): `Turbo.kt`, switches `Synth.turbo`
+  ("Turbo" = whistle) and `Synth.blowOff` ("Blow-off valve"); desktop checkboxes, phone
+  switches + prefs, off by default; the V6 style keeps its whistle via `EngineStyle.turbo`.
+  Built from clips Pai sent (HKS blow-off on a GC8 Impreza, a turbo clip; measured only, never
+  shipped): whistle = clean tone 3 -> 7.7 kHz spooling up in ~0.8 s, down to ~2.6 kHz in
+  ~1.2 s; blow-off = narrow ~6.5 kHz "tsss" (80-90 % in ~150 Hz), up in 15-20 ms, chattering
+  fade ~150 ms. Model: turbo `speed` (target from revs x throttle, up tau 0.6 s, down 0.45 s;
   whistle pitch 2.5 + 5.5 kHz x speed, level x speed^1.5) and `pressure` (builds with throttle
-  > 30 %, leaks slowly). Throttle drop > 30 points with pressure > 0.25 -> `snap()`: blow-off
-  (Svf band 6.5 kHz Q 25 on noise, 15 ms up, tau 60 ms, random chatter) and / or flutter
-  (chuffs at 12 + 26 x e^(-3 x progress) /s, length 0.6-1.5 s by pressure; after a blow-off
-  only 40 % and 0.35 s); either one empties the pressure. Shares the pops' RNG. Measured:
-  pitch 3050 -> 7600 -> 3400 Hz; blow-off 91 % at 5.5-7.5 kHz; flutter 32 -> 16 /s; in the I4
-  demo whistle +8 dB in its range, blow-off ~+3 dB over the engine, flutter +4-5 dB < 1 kHz.
-  `TurboTest`; demo WAVs `lone_whistle/bov/flutter`, `i4_turbo(_bov/_flutter)`,
-  `single_turbo*`. The phone's control column now scrolls.
-  Pai 9 Nov: whistle and blow-off "good"; flutter (separate low thumps < 600 Hz, chop depth
-  1-1.5) "sounds like PVC instrument again". Clip flutter above the engine = a steady rush of
-  air whose loudness WOBBLES gently (depth 0.23-0.28), 4-7 kHz the biggest share (27-35 %),
-  high and low air about equal. v2 flutter: noise through `Svf` band 5 kHz Q 0.6 + a little
-  high-passed hiss + low air (one-pole 0.05 x 3), times a smooth sine wobble (depth 0.35-0.65,
-  new each cycle) at the same 38 -> 12 /s rate, linear fade by remaining boost; whistle wobbles
-  with it. Measured: depth 0.30, 4-7 kHz 30-32 %, high vs low +4 dB (engine fills the low);
-  10-16 kHz 21 % (clip 4-13 %, a bit bright). Lesson again: repeated short hits read as a
-  struck tube; continuous sound with a gentle wobble doesn't.
-  Pai: v2 "is actually flutter sound but not aggressive enough"; sent `3turbo_flutter_style.wav`
-  (use only 0-25 s; after that an electric turbo he doesn't want). Its flutter (2.5-3.3,
-  19.1-20.5, 22.2-23.8 s): low-mid chuffs 300-1000 Hz up to 53 %, almost nothing above 4 kHz,
-  "tu"s ~30 ms apart and irregular (spread 17-27 ms), dips to ~0.70 of the peak. v3 flutter:
-  per "tu" a fast swell (20 %) then a sag, depth 0.45-0.75, rate x 0.5-1.5 random per "tu",
-  `chuffBand` Svf 550 Hz Q 0.8 (x 3.5) under less hiss (5 kHz band x 0.35), length 0.8-1.9 s,
-  `FLUTTER` 1.0, whistle chopped harder. Measured: 300-1000 Hz 38-40 %, > 4 kHz 15-18 %,
-  spacing 32 ms (spread 11-17), dips 0.56-0.80; on the I4 demo ~+9 dB over coasting (v2 +3.5).
-  `TurboTest.flutterChuffsFastThenSlower` now measures median "tu" gaps (35 -> 50 ms), since
-  the rhythm is irregular on purpose.
-  Pai on v3: "sounds like heavy raining drop on zinc sheet", "the earlier one sound better".
-  Lesson: irregular sharp mid-range hits = rain on a roof. REVERTED to v2 (smooth wobbling air,
-  regular rhythm) and only raised `FLUTTER` 0.5 -> 0.9 (+5 dB): ~+7-9 dB over coasting on the
-  I4 / single demos. If more aggression is wanted later, change one thing at a time and keep
-  the regular, smooth wobble.
-  Pai: "give it a deeper wobble like GTR R34 or Supra with 2JZ". Only the depth changed:
-  `flutDepth` 0.35-0.65 -> 0.75-0.95 (same sine, same rhythm / level), whistle chop 0.5 ->
-  0.85. Measured on `lone_flutter`: median dip between "chu"s 0.59 -> 0.27 of the peak. Next
-  knobs if wanted, one at a time: slower rate (big turbos flutter slower), longer flutter.
-  Pai: "still not aggressive as Stutututu from the example". Added knobs on `Turbo`
-  (`flutterBody` 0..1 = low-mid "tu" via `tuBand` Svf 550 Hz Q 0.8 instead of hiss,
-  `flutterSpeed`, `flutterLength`, `flutterLevel`; defaults = the current sound) and
-  `TurboTest.flutterVersionWavs` renders A (body 1), B (A + speed 0.6), C (B + length 1.5,
-  level 1.6) as `flutter_A/B/C.wav` + `i4_flutter_A/B/C.wav` for Pai to pick by ear; then make
-  the pick the default. Waiting for Pai's pick.
+  > 30 %, leaks slowly). Throttle drop > 30 points with pressure > 0.25 and blow-off on ->
+  `snap()`: Svf band 6.5 kHz Q 25 on noise, 15 ms up, tau 60 ms, random chatter; empties the
+  pressure. Measured: pitch 3050 -> 7600 -> 3400 Hz; blow-off 91 % at 5.5-7.5 kHz, ~+3 dB over
+  the engine. **Pai: whistle and blow-off "good".** `TurboTest`; demo WAVs `lone_whistle`,
+  `lone_bov`, `i4_turbo(_bov)`, `single_turbo(_bov)`. The phone's control column scrolls.
+  **Turbo flutter: tried and DROPPED (9 Nov, Pai: "forget the turbo flutter, I don't have
+  enough sample").** Tries, for the record: separate low thumps ("PVC instrument"), smooth
+  wobbling air (closest, "not aggressive enough" even louder / deeper), irregular sharp
+  low-mid chuffs ("heavy rain on a zinc sheet"). Don't bring it back unless Pai asks; if he
+  does, start from the smooth wobbling-air version and get more reference clips first.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

@@ -10,7 +10,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Turbo whistle, flutter and blow-off (Turbo.kt). */
+/** Turbo whistle and blow-off (Turbo.kt). */
 class TurboTest {
     private val sr = 48000
 
@@ -53,7 +53,7 @@ class TurboTest {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)                            // build boost, whistle off
         assertTrue("boost ${t.pressure}", t.pressure > 0.6)
-        t.snap(blowOff = true, flutter = false)
+        t.snap(blowOff = true)
         assertEquals(0.0, t.pressure, 1e-9)
         val x = t.run(0.5, 0.0, 0.8, false)
         val head = x.copyOfRange(0, (0.2 * sr).toInt())
@@ -65,85 +65,26 @@ class TurboTest {
         assertTrue(tail < rms(head) * 0.01)
     }
 
-    @Test fun flutterChuffsFastThenSlower() {
-        val t = turbo()
-        t.run(1.5, 1.0, 0.8, false)
-        t.snap(blowOff = false, flutter = true)
-        val x = t.run(2.0, 0.0, 0.8, false)
-        // loudness 1,000 times a second, then its strongest repeat rate early and late
-        val env = x.toList().chunked(48).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }
-        fun rate(a: Int, b: Int): Double {
-            val e = env.subList(a, b); val m = e.average()
-            return generateSequence(5.0) { it + 0.5 }.takeWhile { it <= 80 }.maxBy { f ->
-                var re = 0.0; var im = 0.0
-                e.forEachIndexed { i, v -> re += (v - m) * cos(2 * PI * f * i / 1000); im += (v - m) * sin(2 * PI * f * i / 1000) }
-                re * re + im * im
-            }
-        }
-        val early = rate(0, 200)
-        val late = rate(700, 950)
-        println("flutter: %.1f chuffs/s early, %.1f later (clip ~35-40 -> ~12)".format(early, late))
-        assertTrue("early $early", early in 28.0..45.0)
-        assertTrue("late $late", late < early - 8)
-    }
-
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)
-        t.snap(blowOff = false, flutter = false)
+        t.snap(blowOff = false)
         assertTrue("boost kept when nothing lets it out", t.pressure > 0.5)
         val x = t.run(0.5, 0.0, 0.8, false)
         assertEquals(0.0, x.maxOf { abs(it) }, 0.0)
     }
 
-    /** Lone blow-off and flutter (no engine) to compare with the clips by ear. */
+    /** Lone blow-off and whistle (no engine) to compare with the clips by ear. */
     @Test fun loneTurboWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        for ((name, bov, flut) in listOf(Triple("lone_bov", true, false), Triple("lone_flutter", false, true))) {
-            val t = turbo()
-            t.run(1.5, 1.0, 0.8, false)
-            t.snap(bov, flut)
-            write(File(dir, "$name.wav"), t.run(2.0, 0.0, 0.8, false))
-        }
+        val b = turbo()
+        b.run(1.5, 1.0, 0.8, false)
+        b.snap(blowOff = true)
+        write(File(dir, "lone_bov.wav"), b.run(2.0, 0.0, 0.8, false))
         // whistle: 1.5 s flat out, then let go
         val t = turbo()
         write(File(dir, "lone_whistle.wav"), t.run(1.5, 1.0, 0.8, true) + t.run(1.5, 0.0, 0.8, true))
-    }
-
-    /** Flutter versions for Pai to pick by ear: A = low-mid "tu" body, B = A slower,
-     *  C = B louder and longer. Alone (no engine) and on the I4 (snap at 6 s). */
-    @Test fun flutterVersionWavs() {
-        val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
-        dir.mkdirs()
-        val versions = mapOf<String, Turbo.() -> Unit>(
-            "A" to { flutterBody = 1.0 },
-            "B" to { flutterBody = 1.0; flutterSpeed = 0.6 },
-            "C" to { flutterBody = 1.0; flutterSpeed = 0.6; flutterLength = 1.5; flutterLevel = 1.6 },
-        )
-        for ((name, knobs) in versions) {
-            val t = turbo().apply(knobs)
-            t.run(1.5, 1.0, 0.8, false)
-            t.snap(blowOff = false, flutter = true)
-            write(File(dir, "flutter_$name.wav"), t.run(2.5, 0.0, 0.8, false))
-
-            val s = Synth(sr).apply { style = Styles.byId("i4"); turbo = true; flutter = true; turboFx.knobs() }
-            val sim = EngineSim()
-            val pcm = ArrayList<Double>()
-            val frame = FloatArray(sr / 60)
-            var since = 1.0
-            for (f in 0 until 60 * 9) {
-                val tt = f / 60.0
-                if (f == 0) sim.start()
-                val tps = if (tt in 3.4..6.0) 100.0 else 0.0
-                sim.step(1 / 60.0, tps)
-                since += 1 / 60.0
-                if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
-                s.render(frame, frame.size)
-                frame.forEach { pcm += it / 4.0 }            // write() makes it 4x louder again
-            }
-            write(File(dir, "i4_flutter_$name.wav"), pcm.toDoubleArray())
-        }
     }
 
     private fun write(f: File, x: DoubleArray) {
