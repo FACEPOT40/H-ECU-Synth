@@ -95,6 +95,24 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   pop length, no bursts). Keep this sound; tune only on request.
   Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
+- Turbo extras (9 Nov, Pai: "add turbo sound for fun", flutter and blow-off "as individual
+  enable"): `Turbo.kt`, switches `Synth.turbo` / `flutter` / `blowOff` ("Turbo", "Turbo
+  flutter", "Blow-off valve"; desktop checkboxes, phone switches + prefs, all off by default;
+  the V6 style keeps its whistle via `EngineStyle.turbo`). Built from two clips Pai sent (HKS
+  blow-off on a GC8 Impreza, a "TURBO flutter" clip; measured only, never shipped):
+  whistle = clean tone 3 -> 7.7 kHz spooling up in ~0.8 s, down to ~2.6 kHz in ~1.2 s;
+  flutter = low air chuffs (< 1 kHz, big swing) ~35-40/s slowing to ~12/s, whistle chopped;
+  blow-off = narrow ~6.5 kHz "tsss" (80-90 % in ~150 Hz), up in 15-20 ms, chattering fade
+  ~150 ms. Model: turbo `speed` (target from revs x throttle, up tau 0.6 s, down 0.45 s;
+  whistle pitch 2.5 + 5.5 kHz x speed, level x speed^1.5) and `pressure` (builds with throttle
+  > 30 %, leaks slowly). Throttle drop > 30 points with pressure > 0.25 -> `snap()`: blow-off
+  (Svf band 6.5 kHz Q 25 on noise, 15 ms up, tau 60 ms, random chatter) and / or flutter
+  (chuffs at 12 + 26 x e^(-3 x progress) /s, length 0.6-1.5 s by pressure; after a blow-off
+  only 40 % and 0.35 s); either one empties the pressure. Shares the pops' RNG. Measured:
+  pitch 3050 -> 7600 -> 3400 Hz; blow-off 91 % at 5.5-7.5 kHz; flutter 32 -> 16 /s; in the I4
+  demo whistle +8 dB in its range, blow-off ~+3 dB over the engine, flutter +4-5 dB < 1 kHz.
+  `TurboTest`; demo WAVs `lone_whistle/bov/flutter`, `i4_turbo(_bov/_flutter)`,
+  `single_turbo*`. The phone's control column now scrolls. Not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

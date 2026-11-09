@@ -37,7 +37,7 @@ data class EngineStyle(
     // and loudness, and some go weak. Fades out as the revs rise.
     val lope: Double = 0.0,
     val limiterHz: Double = 28.0, // rev limiter stutter: cut / fire cycles per second
-    val turbo: Boolean = false, // turbo whistle + blow-off (V6 hybrid)
+    val turbo: Boolean = false, // turbo whistle always on for this style (V6 hybrid)
     val gain: Double = 1.0,     // evens out the loudness between styles
 ) {
     val cylinders get() = firing.size

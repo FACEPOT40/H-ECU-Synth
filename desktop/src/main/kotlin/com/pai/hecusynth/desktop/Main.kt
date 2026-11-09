@@ -164,6 +164,9 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
         c.add(row(label("Volume", 13f, Ink.GREY), slider(0, 100, 70) { synth.volume = it / 100.0 }))
         c.add(row(check("Cam crossover", false) { synth.camEnabled = it; showCam() },
             slider(30, 90, 65) { synth.camRpm = it * 100.0; showCam() }, camLabel))
+        c.add(row(check("Turbo", false) { synth.turbo = it },
+            check("Turbo flutter", false) { synth.flutter = it },
+            check("Blow-off valve", false) { synth.blowOff = it }))
         c.add(row(check("Exhaust pops", false) { synth.crackles = it },
             check("Backfire bangs", false) { synth.bangs = it },
 

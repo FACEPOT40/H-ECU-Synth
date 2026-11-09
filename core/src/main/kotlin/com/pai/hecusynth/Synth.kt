@@ -36,6 +36,10 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var camRpm = 6500.0          // bike rpm
     @Volatile var crackles = false          // exhaust pops: an extra, off by default
     @Volatile var bangs = false             // backfire bangs: an extra, off by default
+    // turbo extras, each its own switch, off by default (the V6 style has its whistle anyway)
+    @Volatile var turbo = false             // turbo whistle
+    @Volatile var flutter = false           // turbo flutter when the throttle snaps shut
+    @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -122,21 +126,18 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var pipeLp = 0.0
     private val body = Svf()
     private val intake = Svf()
-    private var hpLp = 0.0
     private var dcX = 0.0
     private var dcY = 0.0
     private var outGain = 0.0
     private var coefCount = 0
 
-    // ---- turbo (V6)
-    private var boost = 0.0
-    private var whinePhase = 0.0
-    private var bov = 0.0
+    // ---- turbo whistle, flutter, blow-off (see Turbo); uses the pops' random numbers so it
+    // never changes the engine's own sound
+    private val turboFx by lazy { Turbo(sr) { randFx() } }
 
     private val barkDecay = exp(-1.0 / (0.0025 * sr))
 
     private val kickDecay = exp(-1.0 / (0.15 * sr))
-    private val bovDecay = exp(-1.0 / (0.35 * sr))
 
     private fun build(st: EngineStyle) {
         built = st
@@ -155,7 +156,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         crank = 0.0
         pipe.fill(0.0); pipeLp = 0.0
         body.reset(); intake.reset()
-        boost = 0.0; bov = 0.0
     }
 
     /** One exhaust pulse, p = 0..1 over its length: quick rise, then a fall that swings a little
@@ -189,7 +189,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             rampLeft = len
             val tps = inTps.coerceIn(0.0, 100.0)
             targetLoad = tps / 100.0
-            if (st.turbo && lastTps - tps > 25 && boost > 0.3) bov = boost   // blow-off valve
+            // throttle snapped shut: the turbo lets its boost out (blow-off and / or flutter)
+            if (lastTps - tps > 30) turboFx.snap(blowOff, flutter)
             // throttle snapped shut from high revs: a big bang leading a burst of pops
             if (bangs && lastTps - tps > 40 && lastSpread > 0.4) bang()
             lastTps = tps
@@ -316,10 +317,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             intake.process(noise())
             val roar = intake.band * roarAmp * (0.6 + min(1.0, abs(excite)))
 
-            val nz = noise()
-            hpLp += (nz - hpLp) * 0.3
-            val hiss = nz - hpLp                     // high-passed noise
-
             var pre = (body.low * 0.85 + y * 0.15) * norm + roar
             val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load)
             pre = tanh(drv * pre) / tanh(drv)
@@ -328,17 +325,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 pre *= 1 + st.growl * (0.6 * sin(cyc) + 0.4 * sin(2 * cyc + 1.3))
             }
 
-            if (st.turbo) {
-                val tgt = if (cut) 0.0 else load * ((rpmS - 0.35 * st.redline) / (0.4 * st.redline)).coerceIn(0.0, 1.0)
-                boost += (tgt - boost) / ((if (tgt > boost) 0.7 else 0.25) * sr)
-                whinePhase += (1800 + 6500 * boost) / sr
-                if (whinePhase >= 1) whinePhase -= 1.0
-                pre += sin(2 * PI * whinePhase) * 0.05 * boost
-                if (bov > 1e-4) {
-                    pre += hiss * bov * 0.15
-                    bov *= bovDecay
-                }
-            }
+            pre += turboFx.next(load, spread, running, turbo || st.turbo)
 
             pre += backfire.fx * 0.9                 // pops and bangs, after the engine's rasp
 

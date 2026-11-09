@@ -48,6 +48,9 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
             crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
             bangs = prefs.getBoolean("bangs", false)
+            turbo = prefs.getBoolean("turbo", false)
+            flutter = prefs.getBoolean("flutter", false)
+            blowOff = prefs.getBoolean("blow_off", false)
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -121,6 +124,18 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.bangs = on
             prefs.edit().putBoolean("bangs", on).apply()
         })
+        controls.addView(switch("Turbo", synth.turbo) { on ->
+            synth.turbo = on
+            prefs.edit().putBoolean("turbo", on).apply()
+        })
+        controls.addView(switch("Turbo flutter", synth.flutter) { on ->
+            synth.flutter = on
+            prefs.edit().putBoolean("flutter", on).apply()
+        })
+        controls.addView(switch("Blow-off valve", synth.blowOff) { on ->
+            synth.blowOff = on
+            prefs.edit().putBoolean("blow_off", on).apply()
+        })
         controls.addView(switch("Bike data rate (17/s)", bikeRate) { on ->
             bikeRate = on
             prefs.edit().putBoolean("bike_rate", on).apply()
@@ -128,7 +143,9 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(uiText(11f, Look.GREY,
             "Bike data rate: feeds the sound at the K-line's speed, to hear how it will be on the bike."))
 
-        bottom.addView(controls, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply { rightMargin = dp(12) })
+        // the switches scroll: they no longer all fit beside the throttle
+        val scroll = android.widget.ScrollView(this).apply { addView(controls) }
+        bottom.addView(scroll, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply { rightMargin = dp(12) })
         throttle = ThrottleView(this)
         bottom.addView(throttle, LinearLayout.LayoutParams(dp(120), MATCH_PARENT))
         root.addView(bottom, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
