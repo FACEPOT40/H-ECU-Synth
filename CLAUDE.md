@@ -136,7 +136,12 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   Lesson: irregular sharp mid-range hits = rain on a roof. REVERTED to v2 (smooth wobbling air,
   regular rhythm) and only raised `FLUTTER` 0.5 -> 0.9 (+5 dB): ~+7-9 dB over coasting on the
   I4 / single demos. If more aggression is wanted later, change one thing at a time and keep
-  the regular, smooth wobble. Louder v2 not yet heard by Pai.
+  the regular, smooth wobble.
+  Pai: "give it a deeper wobble like GTR R34 or Supra with 2JZ". Only the depth changed:
+  `flutDepth` 0.35-0.65 -> 0.75-0.95 (same sine, same rhythm / level), whistle chop 0.5 ->
+  0.85. Measured on `lone_flutter`: median dip between "chu"s 0.59 -> 0.27 of the peak. Next
+  knobs if wanted, one at a time: slower rate (big turbos flutter slower), longer flutter.
+  Not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

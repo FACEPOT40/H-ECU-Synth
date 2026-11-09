@@ -90,9 +90,9 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
                 flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * (0.9 + 0.2 * rnd()) / sr
                 if (flutPh >= 1) {
                     flutPh -= 1.0
-                    flutDepth = 0.35 + 0.3 * rnd()
+                    flutDepth = 0.75 + 0.2 * rnd()          // deep (Pai: like a GT-R R34 / 2JZ Supra)
                 }
-                val wob = 1 + flutDepth * sin(2 * PI * flutPh)           // gentle, smooth wobble
+                val wob = 1 + flutDepth * sin(2 * PI * flutPh)           // smooth, regular wobble
                 val fade = flutterSize * (1 - prog) * minOf(1.0, flutterT / 0.01)
                 val nz = rnd() * 2 - 1
                 airBand.process(nz)
@@ -100,7 +100,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
                 lowLp += (nz - lowLp) * 0.05                            // ... and low air
                 val air = airBand.band * 1.2 + (nz - airLp) * 0.2 + lowLp * 3.0
                 out += air * wob * fade * FLUTTER
-                gate = 1 - 0.5 * (1 - prog) + 0.5 * (1 - prog) * (wob - 1 + flutDepth) / (2 * flutDepth)
+                gate = 1 - 0.85 * (1 - prog) + 0.85 * (1 - prog) * (wob - 1 + flutDepth) / (2 * flutDepth)
                 flutterT += 1 / sr
             }
         }
