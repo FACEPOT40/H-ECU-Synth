@@ -245,7 +245,9 @@ Debug APK copied to `dist/` (gitignored).
   synth's limiter stutter (starts 250 rpm under the limiter).
 - `BikeLinkTest`: blocked messages, decode vs the logger's vectors, fuel cut, poller with a
   fake ECU (only wake / init / 0x17 sent, reconnects after silence).
-- NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
+- **Pai 9 Nov: "It connected"** on the real bike (first try). "Engine sound" moved to the top
+  of the switch list with a hint ("Off = mute the engine..."): Pai couldn't find a "mute".
+- Readings/s and the sound on the bike: not reported yet. (Was:) NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
   instead of three); check the "readings/s" on the bike.
 
 ## Status

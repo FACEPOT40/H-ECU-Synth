@@ -146,6 +146,14 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         rangeButton = uiButton("") { chooseRange() }
         controls.addView(rangeButton, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
 
+        // at the top, easy to find (Pai looked for "mute bike sound"): off = only the extras
+        controls.addView(switch("Engine sound", synth.engineSound) { on ->
+            synth.engineSound = on
+            prefs.edit().putBoolean("engine_sound", on).apply()
+        })
+        controls.addView(uiText(11f, Look.GREY,
+            "Off = mute the engine: only turbo, blow-off, flutter, pops and bangs play (the real bike is the engine)."))
+
         controls.addView(uiText(13f, Look.GREY, "Volume").apply { setPadding(0, dp(10), 0, 0) })
         controls.addView(seek(100, prefs.getInt("volume", 70)) { v ->
             synth.volume = v / 100.0
@@ -172,10 +180,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(switch("Backfire bangs", synth.bangs) { on ->
             synth.bangs = on
             prefs.edit().putBoolean("bangs", on).apply()
-        })
-        controls.addView(switch("Engine sound", synth.engineSound) { on ->
-            synth.engineSound = on
-            prefs.edit().putBoolean("engine_sound", on).apply()
         })
         controls.addView(switch("Turbo", synth.turbo) { on ->
             synth.turbo = on
