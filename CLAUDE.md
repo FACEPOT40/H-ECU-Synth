@@ -274,6 +274,22 @@ Debug APK copied to `dist/` (gitignored).
 - Readings/s on the bike: not reported yet. (Was:) NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
   instead of three); check the "readings/s" on the bike.
 
+## Releases
+- **v1.0.0 (9 Nov 2026)**, Pai: "build it as v1.0 both desktop and apk ... put it in release".
+  Phone `versionName` 1.0.0 / `versionCode` 2 (raise on every phone release); desktop
+  `Main.kt VERSION` + `desktop/build.gradle.kts version`: keep all three in step.
+- `build_apk_release.bat` -> `dist\H-ECU-Synth-<v>.apk`, signed with H-ECU Logger's release
+  key (CN=FACEPOT40, SHA-256 6854...40a8, same as H-ECU-Logger-0.3.2.apk): app/build.gradle.kts
+  reads `keystore.properties` here, else `../Honda-ECU-Logger/android/keystore.properties`
+  (relative storeFile -> that android/app). Never read / print / copy / commit the key or password.
+- `build_desktop_release.bat` -> `dist\H-ECU-Synth-Desktop-<v>-win64.zip`: installDist, jlink
+  (java.desktop only) + jpackage app-image from Adoptium JDK 25, icon `assets/icon.ico`
+  (`python tools\make_icon.py`, numpy only). Checked: the .exe opens "H-ECU Synth 1.0.0
+  (desktop)" (the launcher starts a second process for the window).
+- Batch files: CRLF (`.gitattributes`), and call Gradle as `"%~dp0gradlew.bat"` (cmd started
+  from Claude's shells can't run a bare `gradlew.bat`; harmless for Pai's double-click).
+- A release build can't update a debug install (different signature): uninstall the debug first.
+
 ## Status
 - 0.1.0 (9 Nov): simulator built and unit-tested; not yet heard on the phone, sounds untuned
   by ear. BikeRange is fixed at idle 1400 / redline 9500 (no setting yet).

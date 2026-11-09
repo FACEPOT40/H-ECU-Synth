@@ -17,4 +17,7 @@ java {
 
 application {
     mainClass.set("com.pai.hecusynth.desktop.MainKt")
+    applicationName = "H-ECU-Synth"
 }
+
+version = "1.0.0"     // keep in step with Main.kt VERSION and the phone's versionName

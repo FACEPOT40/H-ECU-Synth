@@ -14,6 +14,16 @@ with the screen off too. Bike mode is built and tested with a fake ECU, not yet 
 The K-line link is **read-only**: it only sends wake-up, init and live-data queries, never
 anything that writes to the ECU.
 
+## Download (v1.0.0)
+From this repo's **Releases** page:
+- **H-ECU-Synth-1.0.0.apk**: the phone app (Android 10+). If you had a test build installed,
+  uninstall it first (a release build is signed differently, Android won't update over it).
+- **H-ECU-Synth-Desktop-1.0.0-win64.zip**: the desktop simulator and sound tuner for Windows.
+  Unzip and run `H-ECU Synth.exe` (Java is included).
+
+On the bike it needs the same FTDI K-line cable as H-ECU Logger (USB OTG). Close H-ECU Logger
+first: only one app can use the cable.
+
 ## Engine styles
 1-cyl · 90° V-twin · I4 superbike (flat-plane) · I4 crossplane · V6 turbo · V8 · V10
 
@@ -30,6 +40,8 @@ Hold Space to rev, Enter starts / stops the engine. "Copy as Kotlin" copies a tu
 ## Build
 ```
 gradlew.bat testDebugUnitTest assembleDebug
+build_apk_release.bat        # dist\H-ECU-Synth-<version>.apk (signed)
+build_desktop_release.bat    # dist\H-ECU-Synth-Desktop-<version>-win64.zip
 ```
 with `JAVA_HOME` set to Android Studio's `jbr`. The tests also write one demo rev run per style
 to `app/build/demo-wav/` so you can listen on the PC.

@@ -80,7 +80,10 @@ fun main() {
  * Keyboard: hold Space or Up = full throttle; hold 1..9 = 10..90 %, 0 = 100 %; Enter = start /
  * stop the engine. Or drag on the throttle bar with the mouse.
  */
-class SynthWindow : JFrame("H-ECU Synth (desktop)") {
+/** Desktop version: keep in step with the phone's versionName (app/build.gradle.kts). */
+const val VERSION = "1.0.0"
+
+class SynthWindow : JFrame("H-ECU Synth $VERSION (desktop)") {
     private val synth = Synth(DesktopAudio.RATE)
     private val audio = DesktopAudio(synth)
     private val sim = EngineSim()
