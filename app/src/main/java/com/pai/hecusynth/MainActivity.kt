@@ -48,6 +48,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
             crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
             bangs = prefs.getBoolean("bangs", false)
+            engineSound = prefs.getBoolean("engine_sound", true)
             turbo = prefs.getBoolean("turbo", false)
             blowOff = prefs.getBoolean("blow_off", false)
         }
@@ -122,6 +123,10 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(switch("Backfire bangs", synth.bangs) { on ->
             synth.bangs = on
             prefs.edit().putBoolean("bangs", on).apply()
+        })
+        controls.addView(switch("Engine sound", synth.engineSound) { on ->
+            synth.engineSound = on
+            prefs.edit().putBoolean("engine_sound", on).apply()
         })
         controls.addView(switch("Turbo", synth.turbo) { on ->
             synth.turbo = on

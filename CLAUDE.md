@@ -114,7 +114,13 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   pressure; let-off = throttle < 15 % while the highest throttle held over the last 0.6 s
   (`tpsPeak` / `peakAge` in Synth) is 30+ points higher, so slow releases count too.
   `TurboTest.blowOffOnEveryLetOff` (short rev, quick and eased-off release, via Synth at
-  17/s). Backfire bangs keep their own snap check (> 40-point drop) unchanged. `TurboTest`; demo WAVs `lone_whistle`,
+  17/s). Backfire bangs keep their own snap check (> 40-point drop) unchanged.
+- Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
+  cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
+  (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the
+  engine's own sound (after saturation / growl, 30 ms) to 0; the engine keeps running inside,
+  so revs, limiter, turbo spool, let-offs, pops and bangs all still work. Extras keep their own
+  switches. `TurboTest.engineMutedLeavesTurboAndBlowOff`, demo `single_turbo_only.wav`. `TurboTest`; demo WAVs `lone_whistle`,
   `lone_bov`, `i4_turbo(_bov)`, `single_turbo(_bov)`. The phone's control column scrolls.
   **Turbo flutter: tried and DROPPED (9 Nov, Pai: "forget the turbo flutter, I don't have
   enough sample").** Tries, for the record: separate low thumps ("PVC instrument"), smooth

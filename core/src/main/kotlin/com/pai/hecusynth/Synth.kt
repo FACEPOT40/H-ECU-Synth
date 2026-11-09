@@ -37,6 +37,10 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var crackles = false          // exhaust pops: an extra, off by default
     @Volatile var bangs = false             // backfire bangs: an extra, off by default
     // turbo extras, each its own switch, off by default (the V6 style has its whistle anyway)
+    /** The engine's own sound. Off = only the extras (turbo, blow-off, pops, bangs): on the
+     *  bike the real engine is the engine sound (Pai: a turbo + blow-off on the single). The
+     *  engine still runs underneath, so the revs, turbo spool and let-offs all still work. */
+    @Volatile var engineSound = true
     @Volatile var turbo = false             // turbo whistle
     @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
 
@@ -88,6 +92,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private val cam = CamSwitch()
     private var camMix = 0.0
     private var camKick = 0.0
+    private var engineMix = 1.0             // fades the engine sound in / out (no click)
 
     // ---- the engine
     private var built: EngineStyle? = null
@@ -228,6 +233,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         val pipeLen = (st.pipeMs / 1000.0 * sr).toInt().coerceIn(1, pipe.size - 1)
         val loadCoef = 1.0 / (0.03 * sr)
         val camCoef = 1.0 / (0.03 * sr)
+        val engineCoef = 1.0 / (0.03 * sr)
         val vol = volume * st.gain
 
         for (i in 0 until frames) {
@@ -334,6 +340,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 val cyc = 2 * PI * crank / 720.0
                 pre *= 1 + st.growl * (0.6 * sin(cyc) + 0.4 * sin(2 * cyc + 1.3))
             }
+
+            engineMix += ((if (engineSound) 1.0 else 0.0) - engineMix) * engineCoef
+            pre *= engineMix
 
             pre += turboFx.next(load, spread, running, turbo || st.turbo)
 

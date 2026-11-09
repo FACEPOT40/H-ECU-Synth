@@ -111,6 +111,57 @@ class TurboTest {
         assertEquals(0.0, x.maxOf { abs(it) }, 0.0)
     }
 
+    /** Engine sound off (Pai: turbo + blow-off on the real single): the engine's own sound is
+     *  gone, but the turbo still spools with the revs and the blow-off still fires on let-off.
+     *  Also writes `single_turbo_only.wav` (two revs, both let off). */
+    @Test fun engineMutedLeavesTurboAndBlowOff() {
+        fun ride(engine: Boolean, turboOn: Boolean): DoubleArray {
+            val s = Synth(sr).apply {
+                style = Styles.byId("single"); engineSound = engine; turbo = turboOn; blowOff = turboOn
+            }
+            val sim = EngineSim()
+            val pcm = ArrayList<Double>()
+            val frame = FloatArray(sr / 60)
+            var since = 1.0
+            for (f in 0 until 60 * 8) {
+                val t = f / 60.0
+                if (f == 0) sim.start()
+                val tps = if (t in 2.0..2.8 || t in 4.0..6.0) 100.0 else 0.0
+                sim.step(1 / 60.0, tps)
+                since += 1 / 60.0
+                if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
+                s.render(frame, frame.size)
+                frame.forEach { pcm += it.toDouble() }
+            }
+            return pcm.toDoubleArray()
+        }
+        fun part(x: DoubleArray, a: Double, b: Double) = x.copyOfRange((a * sr).toInt(), (b * sr).toInt())
+        val silent = ride(engine = false, turboOn = false)
+        assertTrue("engine muted, no extras: should be silent", rms(silent) < 1e-3)
+
+        val withEngine = ride(engine = true, turboOn = true)
+        val turboOnly = ride(engine = false, turboOn = true)
+        // the engine's low notes are gone (single at ~4,000-9,000 rpm: firing 33-80 Hz, harmonics)
+        val lowEngine = generateSequence(60.0) { it + 20 }.takeWhile { it <= 600 }.sumOf { power(part(withEngine, 4.5, 5.9), it) }
+        val lowTurbo = generateSequence(60.0) { it + 20 }.takeWhile { it <= 600 }.sumOf { power(part(turboOnly, 4.5, 5.9), it) }
+        // the whistle is still there while revving, and the blow-off after each let-off
+        val whistle = rms(part(turboOnly, 4.5, 5.9))
+        val bov1 = generateSequence(6000.0) { it + 50 }.takeWhile { it <= 7000 }.sumOf { power(part(turboOnly, 2.8, 3.3), it) }
+        val bov2 = generateSequence(6000.0) { it + 50 }.takeWhile { it <= 7000 }.sumOf { power(part(turboOnly, 6.0, 6.5), it) }
+        val quiet = generateSequence(6000.0) { it + 50 }.takeWhile { it <= 7000 }.sumOf { power(part(turboOnly, 1.0, 1.5), it) }
+        println("engine muted: engine lows %.0fx lower, whistle rms %.3f, blow-offs %.0fx / %.0fx over idle".format(
+            lowEngine / lowTurbo, whistle, bov1 / quiet, bov2 / quiet))
+        assertTrue("engine still audible", lowTurbo < lowEngine / 100)
+        assertTrue("no whistle", whistle > 0.01)
+        assertTrue("no blow-off after the first rev", bov1 > quiet * 50)
+        assertTrue("no blow-off after the second rev", bov2 > quiet * 50)
+
+        System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() }?.let { d ->
+            File(d).mkdirs()
+            write(File(d, "single_turbo_only.wav"), DoubleArray(turboOnly.size) { turboOnly[it] / 4 })   // write() is 4x
+        }
+    }
+
     /** Lone blow-off and whistle (no engine) to compare with the clips by ear. */
     @Test fun loneTurboWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
