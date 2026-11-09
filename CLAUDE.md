@@ -204,7 +204,8 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   About. Auto-connect: USB_DEVICE_ATTACHED (onCreate / onNewIntent, singleTask) and on switching
   to Bike with the cable already in. `showSource` only recolors on a state change (it runs
   every frame in Bike mode). `Ui.kt`: `uiCard`, `TextView.chip`, `Look.GREEN`.
-  Built, tests pass; NOT yet seen on a phone.
+  **Pai 9 Nov: "It's perfect since it was for fun. Let's stop it like this."** Project paused
+  here: everything works on the phone and the bike as Pai wants. Not on GitHub (ask first).
 - `MainActivity.kt`: simulator screen (style buttons, rev meter, Start/Stop engine, volume,
   cam crossover switch + rpm, exhaust pops, "Bike data rate (17/s)"), throttle on the right.
   Settings in SharedPreferences "synth". Audio runs only while the screen is open.
