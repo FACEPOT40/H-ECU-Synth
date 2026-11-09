@@ -47,6 +47,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             camEnabled = prefs.getBoolean("cam_on", false)
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
             crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
+            bangs = prefs.getBoolean("bangs", false)
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -115,6 +116,10 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(switch("Exhaust pops", synth.crackles) { on ->
             synth.crackles = on
             prefs.edit().putBoolean("crackles", on).apply()
+        })
+        controls.addView(switch("Backfire bangs", synth.bangs) { on ->
+            synth.bangs = on
+            prefs.edit().putBoolean("bangs", on).apply()
         })
         controls.addView(switch("Bike data rate (17/s)", bikeRate) { on ->
             bikeRate = on

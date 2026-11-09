@@ -33,6 +33,9 @@ data class EngineStyle(
     // Swell and dip once per cycle (2 turns): how the pulses of the different cylinders and
     // exhaust banks add up unevenly. The low, rough "engine" part of a multi-cylinder's sound.
     val growl: Double = 0.0,
+    // Big-cam lope at idle (0..1): the revs hunt up and down, the bangs come uneven in time
+    // and loudness, and some go weak. Fades out as the revs rise.
+    val lope: Double = 0.0,
     val limiterHz: Double = 28.0, // rev limiter stutter: cut / fire cycles per second
     val turbo: Boolean = false, // turbo whistle + blow-off (V6 hybrid)
     val gain: Double = 1.0,     // evens out the loudness between styles
@@ -64,14 +67,14 @@ object Styles {
             "single", "1-cyl", "Single cylinder", doubleArrayOf(0.0),
             idle = 1400.0, redline = 9500.0, pulseDeg = 230.0, pipeMs = 3.6, pipeFeedback = 0.55,
             toneHz = 600.0, toneLoadHz = 2000.0, resonance = 1.3, drive = 1.8, bark = 0.35,
-            intake = 0.12, jitterDeg = 7.0, unevenAmp = 0.0, limiterHz = 18.0, gain = 1.0,
+            intake = 0.12, jitterDeg = 7.0, unevenAmp = 0.0, lope = 0.2, limiterHz = 18.0, gain = 1.0,
         ),
         // 90° V-twin: fires at 0° and 270°, then waits 450° (the "potato" beat)
         EngineStyle(
             "vtwin", "V-twin", "90° V-twin", doubleArrayOf(0.0, 270.0),
             idle = 1100.0, redline = 11000.0, pulseDeg = 230.0, pipeMs = 2.8, pipeFeedback = 0.5,
             toneHz = 550.0, toneLoadHz = 2400.0, resonance = 1.4, drive = 2.1, bark = 0.3,
-            intake = 0.18, jitterDeg = 4.0, unevenAmp = 0.12, limiterHz = 20.0, gain = 0.85,
+            intake = 0.18, jitterDeg = 4.0, unevenAmp = 0.12, lope = 0.35, limiterHz = 20.0, gain = 0.85,
         ),
         // flat-plane inline 4: even 180° spacing, the classic superbike scream
         EngineStyle(
@@ -85,7 +88,7 @@ object Styles {
             "i4cp", "I4 CP", "Crossplane inline 4", doubleArrayOf(0.0, 270.0, 450.0, 540.0),
             idle = 1300.0, redline = 14000.0, pulseDeg = 200.0, pipeMs = 1.9, pipeFeedback = 0.45,
             toneHz = 900.0, toneLoadHz = 3800.0, resonance = 1.2, drive = 2.3, bark = 0.22,
-            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.15, unevenDeg = 2.0, unevenWidth = 0.1, limiterHz = 26.0, gain = 0.9,
+            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.15, unevenDeg = 2.0, unevenWidth = 0.1, lope = 0.1, limiterHz = 26.0, gain = 0.9,
         ),
         EngineStyle(
             "v6", "V6 F1", "V6 turbo (F1 hybrid era)", even(6),

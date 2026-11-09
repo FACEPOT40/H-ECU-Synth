@@ -34,6 +34,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var camEnabled = false
     @Volatile var camRpm = 6500.0          // bike rpm
     @Volatile var crackles = false          // exhaust pops: an extra, off by default
+    @Volatile var bangs = false             // backfire bangs: an extra, off by default
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -95,7 +96,36 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var phase = DoubleArray(0)
     private var amp = DoubleArray(0)
     private var barkEnv = DoubleArray(0)
+    private var idleF = 0.0                 // 1 at idle, 0 from ~35 % of the rev range up
+
+    // ---- big-cam lope: the idle hunts up and down, bangs come uneven, some go weak
+    private var lopeOff = 0.0
+    private var lopeTarget = 0.0
+    private var lopeTimer = 0
+
+    // ---- pops (small, wet): a short burst, a low "pof", a few crackles after it
     private var popEnv = 0.0
+    private var popLp = 0.0
+    private var popBoom = 0.0
+    private var popHz = 120.0
+    private var popPh = 0.0
+    private var grainsLeft = 0
+    private var grainTimer = 0
+    private var grainEnv = 0.0
+
+    // ---- backfire bangs (big, rare): a crack, a blast, a deep boom
+    private var bangQueue = 0
+    private var bangTimer = 0
+    private var bangEnv = 0.0
+    private var bangLp = 0.0
+    private var bangBoom = 0.0
+    private var bangHz = 70.0
+    private var bangPh = 0.0
+    private var crackEnv = 0.0
+    private var lastSpread = 0.0
+
+    // ---- a short echo tail for pops and bangs, so they sound outdoors, not dry
+    private val tail = Tail(sr)
 
     // ---- sound shaping
     private val pipe = DoubleArray((sr * 0.02).toInt() + 2)
@@ -115,7 +145,12 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var bov = 0.0
 
     private val barkDecay = exp(-1.0 / (0.0025 * sr))
-    private val popDecay = exp(-1.0 / (0.006 * sr))
+    private val popDecay = exp(-1.0 / (0.012 * sr))
+    private val popBoomDecay = exp(-1.0 / (0.035 * sr))
+    private val grainDecay = exp(-1.0 / (0.0015 * sr))
+    private val bangDecay = exp(-1.0 / (0.03 * sr))
+    private val bangBoomDecay = exp(-1.0 / (0.13 * sr))
+    private val crackDecay = exp(-1.0 / (0.0008 * sr))
     private val kickDecay = exp(-1.0 / (0.15 * sr))
     private val bovDecay = exp(-1.0 / (0.35 * sr))
 
@@ -171,6 +206,11 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             val tps = inTps.coerceIn(0.0, 100.0)
             targetLoad = tps / 100.0
             if (st.turbo && lastTps - tps > 25 && boost > 0.3) bov = boost   // blow-off valve
+            // throttle snapped shut from high revs: 1-3 backfire bangs in the next moment
+            if (bangs && lastTps - tps > 40 && lastSpread > 0.4 && bangQueue == 0) {
+                bangQueue = 1 + (rand01() * 2.99).toInt()
+                bangTimer = ((0.03 + 0.1 * rand01()) * sr).toInt()
+            }
             lastTps = tps
             cutIn = inCut
             sinceInput = 0
@@ -207,11 +247,22 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
 
             if (!atLimiter) cut = cutIn
             val dip = if (!atLimiter) 0.0 else if (cut) limPos / 0.45 else (1 - limPos) / 0.55
-            val rpmS = range.toStyle(rpm, st) * (1 - 0.02 * dip)   // revs sag in each cut
+            var rpmS = range.toStyle(rpm, st) * (1 - 0.02 * dip)   // revs sag in each cut
             val running = rpmS > 120
+            val spread = ((rpmS - st.idle) / (st.redline - st.idle)).coerceIn(0.0, 1.0)
+            lastSpread = spread
+            idleF = (1 - spread / 0.35).coerceIn(0.0, 1.0)
+            // lope: the idle hunts up and down by up to ~15 %, a new direction every 0.15-0.5 s
+            if (st.lope > 0 && running) {
+                if (--lopeTimer <= 0) {
+                    lopeTarget = rand01() * 2 - 1
+                    lopeTimer = ((0.15 + 0.35 * rand01()) * sr).toInt()
+                }
+                lopeOff += (lopeTarget - lopeOff) / (0.12 * sr)
+                rpmS *= 1 + 0.15 * st.lope * idleF * lopeOff
+            }
             val dDeg = rpmS * 6.0 / sr
             val fireHz = st.firingHz(rpmS)
-            val spread = ((rpmS - st.idle) / (st.redline - st.idle)).coerceIn(0.0, 1.0)
 
             // 1. crank and cylinders
             crank += dDeg
@@ -220,7 +271,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 if (crank >= next[c]) {
                     val over = crank - next[c]
                     next[c] += 720.0 - off[c]
-                    off[c] = st.unevenDeg * uDeg[c] + st.jitterDeg * (1 - 0.8 * spread) * (rand01() * 2 - 1)
+                    off[c] = st.unevenDeg * uDeg[c] +
+                        (st.jitterDeg * (1 - 0.8 * spread) + 40 * st.lope * idleF) * (rand01() * 2 - 1)
                     next[c] += off[c]
                     if (running && atLimiter) {
                         val m = st.limiterFirings(fireHz)
@@ -246,12 +298,62 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 crank -= 720.0
                 for (c in 0 until n) next[c] -= 720.0
             }
-            var pop = 0.0
+            // pops and bangs: their own sound, added after the saturation so they stay punchy
+            var fx = 0.0
+            var thump = 0.0                          // the part that also goes down the pipe
             if (popEnv > 1e-4) {
-                pop = popEnv * (0.5 + noise())
+                popLp += (noise() - popLp) * 0.35    // a bit darker than white noise
+                fx += popEnv * popLp * 1.4
+                thump += popEnv * 0.5
                 popEnv *= popDecay
             }
-            excite += pop
+            if (popBoom > 1e-4) {
+                popPh += popHz / sr
+                if (popPh >= 1) popPh -= 1.0
+                fx += popBoom * sin(2 * PI * popPh) * 0.9
+                popBoom *= popBoomDecay
+            }
+            if (grainsLeft > 0 && --grainTimer <= 0) {           // crackles trailing the pop
+                grainEnv = 0.25 + 0.45 * rand01()
+                grainsLeft--
+                grainTimer = ((0.004 + 0.014 * rand01()) * sr).toInt()
+            }
+            if (grainEnv > 1e-4) {
+                fx += grainEnv * noise()
+                grainEnv *= grainDecay
+            }
+            if (bangs && running && cut && !atLimiter && spread > 0.35 && bangQueue == 0 && rand01() < 0.4 / sr) {
+                bangQueue = 1                                     // now and then while coasting
+                bangTimer = 1
+            }
+            if (bangQueue > 0 && --bangTimer <= 0) {
+                bangQueue--
+                bangTimer = ((0.06 + 0.2 * rand01()) * sr).toInt()
+                val big = 0.75 + 0.25 * rand01()
+                crackEnv = big
+                bangEnv = big
+                bangBoom = big
+                bangHz = 58.0 + 25 * rand01()
+                bangPh = 0.0
+            }
+            if (crackEnv > 1e-4) {
+                fx += crackEnv * (0.6 + 0.4 * noise()) * 1.6
+                crackEnv *= crackDecay
+            }
+            if (bangEnv > 1e-4) {
+                bangLp += (noise() - bangLp) * 0.5
+                fx += bangEnv * bangLp * 1.5
+                thump += bangEnv * 0.6
+                bangEnv *= bangDecay
+            }
+            if (bangBoom > 1e-4) {
+                bangPh += bangHz / sr
+                if (bangPh >= 1) bangPh -= 1.0
+                bangHz *= 0.99997                                 // the boom drops in pitch
+                fx += bangBoom * sin(2 * PI * bangPh) * 1.3
+                bangBoom *= bangBoomDecay
+            }
+            excite += thump
 
             // 2. exhaust pipe echo (with a little damping in the loop)
             var readIdx = pipeIdx - pipeLen
@@ -280,9 +382,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             val nz = noise()
             hpLp += (nz - hpLp) * 0.3
             val hiss = nz - hpLp                     // high-passed noise
-            val crackle = pop * hiss * 0.6
 
-            var pre = (body.low * 0.85 + y * 0.15) * norm + roar + crackle
+            var pre = (body.low * 0.85 + y * 0.15) * norm + roar
             val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load)
             pre = tanh(drv * pre) / tanh(drv)
             if (st.growl > 0) {
@@ -302,6 +403,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 }
             }
 
+            pre += fx * 0.8 + tail.process(fx) * 0.5
+
             // DC blocker, smooth volume, soft limit (never a hard clip)
             val d = pre - dcX + 0.995 * dcY
             dcX = pre; dcY = d
@@ -317,16 +420,54 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         // a little random loudness per firing, mostly for the slow singles and twins: on an
         // engine firing 1,000+ times a second it only adds hiss
         val rough = 0.08 * min(1.0, st.jitterDeg / 4.0)
-        val a = loud * cylAmp[c] * (1 + rough * (rand01() - 0.5)) * (1 + 0.3 * camKick)
+        var a = loud * cylAmp[c] * (1 + rough * (rand01() - 0.5)) * (1 + 0.3 * camKick)
+        // big-cam lope: uneven bangs at idle, and now and then a weak one (half-burnt)
+        val lope = st.lope * idleF
+        if (lope > 0 && !cut) {
+            a *= 1 + lope * (rand01() * 1.4 - 0.7)
+            if (rand01() < 0.18 * lope) a *= 0.2
+        }
         phase[c] = min(over / cylWidth[c], 0.99)
         amp[c] = a
-        barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load) * a
+        barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load + lope) * a
         // exhaust pops: unburnt fuel lighting in the pipe while the fuel is cut at high revs.
         // About 12 a second, whatever the number of cylinders.
         if (crackles && cut && rpmS > 0.3 * st.redline) {
             val perSecond = st.firingHz(rpmS)
-            if (rand01() < 12.0 / perSecond) popEnv = 0.9 + 0.6 * rand01()
+            if (rand01() < 12.0 / perSecond) {
+                val big = 0.6 + 0.5 * rand01()
+                popEnv = big
+                popBoom = big * (0.6 + 0.4 * rand01())
+                popHz = 90.0 + 90 * rand01()
+                popPh = 0.0
+                grainsLeft = 2 + (rand01() * 4).toInt()
+                grainTimer = ((0.003 + 0.01 * rand01()) * sr).toInt()
+            }
         }
+    }
+}
+
+/**
+ * A short outdoor-style echo tail (three damped echoes of 23-41 ms), used only on pops and
+ * bangs so they ring out a little instead of sounding dry and clicky.
+ */
+class Tail(sr: Double) {
+    private val lens = intArrayOf((0.023 * sr).toInt(), (0.031 * sr).toInt(), (0.041 * sr).toInt())
+    private val bufs = Array(3) { DoubleArray(lens[it]) }
+    private val idx = IntArray(3)
+    private val lp = DoubleArray(3)
+
+    fun process(x: Double): Double {
+        var out = 0.0
+        for (k in 0 until 3) {
+            val b = bufs[k]
+            val old = b[idx[k]]
+            lp[k] += (old - lp[k]) * 0.35            // each echo a bit duller
+            b[idx[k]] = x + 0.55 * lp[k]
+            idx[k] = (idx[k] + 1) % b.size
+            out += old
+        }
+        return out / 3
     }
 }
 

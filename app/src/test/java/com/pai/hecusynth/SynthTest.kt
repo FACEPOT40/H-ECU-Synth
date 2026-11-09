@@ -57,7 +57,7 @@ class SynthTest {
 
     @Test fun boundedAndFinite() {
         for (st in Styles.ALL) {
-            val s = Synth(sr).apply { style = st; volume = 1.0; camEnabled = true; camRpm = 5000.0; crackles = true }
+            val s = Synth(sr).apply { style = st; volume = 1.0; camEnabled = true; camRpm = 5000.0; crackles = true; bangs = true }
             val sim = EngineSim()
             sim.start()
             val block = FloatArray(800)
@@ -193,12 +193,17 @@ class SynthTest {
     }
 
     /** Writes one rev run per style to app/build/demo-wav/ so the sounds can be heard on the PC:
-     *  `<style>.wav` is the stock sound, `<style>_pops.wav` the same run with exhaust pops on. */
+     *  `<style>.wav` is the stock sound, `_pops` / `_bangs` the same run with that extra on,
+     *  `<style>_lope_max.wav` the idle with full cam lope. */
     @Test fun demoWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        for (st in Styles.ALL) for (pops in listOf(false, true)) {
-            val s = Synth(sr).apply { style = st; camEnabled = true; camRpm = 6500.0; crackles = pops }
+        // stock, pops only, bangs only
+        for (st in Styles.ALL) for (fx in listOf("", "_pops", "_bangs")) {
+            val s = Synth(sr).apply {
+                style = st; camEnabled = true; camRpm = 6500.0
+                crackles = fx == "_pops"; bangs = fx == "_bangs"
+            }
             val sim = EngineSim()
             val pcm = ArrayList<Float>()
             val frame = FloatArray(sr / 60)
@@ -218,7 +223,24 @@ class SynthTest {
                 s.render(frame, frame.size)
                 frame.forEach { pcm += it }
             }
-            writeWav(File(dir, if (pops) "${st.id}_pops.wav" else "${st.id}.wav"), pcm)
+            writeWav(File(dir, "${st.id}$fx.wav"), pcm)
+        }
+        // big-cam lope at full: 5 s of idle with two short blips
+        for (id in listOf("vtwin", "single")) {
+            val s = Synth(sr).apply { style = Styles.byId(id).copy(lope = 1.0) }
+            val sim = EngineSim()
+            val pcm = ArrayList<Float>()
+            val frame = FloatArray(sr / 60)
+            for (f in 0 until 60 * 6) {
+                val t = f / 60.0
+                if (f == 0) sim.start()
+                val tps = if (t in 3.0..3.25 || t in 4.2..4.45) 45.0 else 0.0
+                sim.step(1 / 60.0, tps)
+                if (f % 3 == 0) s.set(sim.rpm, tps, sim.fuelCut)
+                s.render(frame, frame.size)
+                frame.forEach { pcm += it }
+            }
+            writeWav(File(dir, "${id}_lope_max.wav"), pcm)
         }
         println("demo WAVs in $dir")
     }

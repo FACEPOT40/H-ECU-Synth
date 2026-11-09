@@ -51,6 +51,17 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   can't drift against the bangs or cylinders; cut bangs at 0.03 (coasting cut stays 0.12);
   revs sag 2 % per cut. Rate per style `limiterHz` (18-38/s), on a tuning slider.
   `SynthTest.limiterStuttersFast` checks every style at K-line rate. Screens show "LIMITER".
+- Lope, pops, bangs (9 Nov, Pai: max idle lump "not uneven enough like a lopey big-cam
+  V-twin", pops "too dry", "add a bang sound to enable"): style `lope` (0..1, "Cam lope"
+  slider; single 0.2, V-twin 0.35, I4 CP 0.1) at idle only (`idleF`, gone from 35 % of the rev
+  range): rpm hunts up to 15 % (new random target every 0.15-0.5 s), +40° timing scatter,
+  bang loudness +-70 %, 18 % weak bangs, more bark. "Idle lump" range now 0-40°. Pops now a
+  wet voice: darker noise burst (12 ms) + low "pof" sine 90-180 Hz (35 ms) + 2-5 trailing
+  crackle grains, mostly after the saturation, through `Tail` (3 damped echoes 23-41 ms).
+  `Synth.bangs` (switch "Backfire bangs", off by default, desktop + phone): 1-3 bangs when the
+  throttle snaps shut (> 40 points) from > 40 % of the rev range, and ~0.4/s while coasting
+  there; each = crack (0.8 ms) + blast (30 ms) + falling boom 58-83 Hz (130 ms) + tail.
+  `FxTest`. Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
