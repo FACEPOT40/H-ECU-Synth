@@ -33,6 +33,7 @@ data class EngineStyle(
     // Swell and dip once per cycle (2 turns): how the pulses of the different cylinders and
     // exhaust banks add up unevenly. The low, rough "engine" part of a multi-cylinder's sound.
     val growl: Double = 0.0,
+    val limiterHz: Double = 28.0, // rev limiter stutter: cut / fire cycles per second
     val turbo: Boolean = false, // turbo whistle + blow-off (V6 hybrid)
     val gain: Double = 1.0,     // evens out the loudness between styles
 ) {
@@ -40,6 +41,19 @@ data class EngineStyle(
 
     /** Firing pulses per second at [rpm]: one per cylinder every 2 turns. */
     fun firingHz(rpm: Double) = rpm / 120.0 * cylinders
+
+    /** Firings in one limiter cut / fire cycle (whole firings, at least 2). The stutter then runs
+     *  at firingHz / this, as close to [limiterHz] as whole firings allow. When there are enough
+     *  firings it's a whole number of engine cycles, so every round cuts the same cylinders
+     *  (otherwise their small differences add a slow wobble on top of the stutter). */
+    fun limiterFirings(fireHz: Double): Int {
+        val m = maxOf(2, Math.round(fireHz / limiterHz).toInt())
+        if (cylinders < 2 || m < cylinders) return m
+        return maxOf(1, Math.round(m.toDouble() / cylinders).toInt()) * cylinders
+    }
+
+    /** How many of those firings are cut: about 45 %, at least 1, never all. */
+    fun limiterCut(m: Int) = Math.round(m * 0.45).toInt().coerceIn(1, m - 1)
 }
 
 object Styles {
@@ -50,46 +64,46 @@ object Styles {
             "single", "1-cyl", "Single cylinder", doubleArrayOf(0.0),
             idle = 1400.0, redline = 9500.0, pulseDeg = 230.0, pipeMs = 3.6, pipeFeedback = 0.55,
             toneHz = 600.0, toneLoadHz = 2000.0, resonance = 1.3, drive = 1.8, bark = 0.35,
-            intake = 0.12, jitterDeg = 7.0, unevenAmp = 0.0, gain = 1.0,
+            intake = 0.12, jitterDeg = 7.0, unevenAmp = 0.0, limiterHz = 18.0, gain = 1.0,
         ),
         // 90° V-twin: fires at 0° and 270°, then waits 450° (the "potato" beat)
         EngineStyle(
             "vtwin", "V-twin", "90° V-twin", doubleArrayOf(0.0, 270.0),
             idle = 1100.0, redline = 11000.0, pulseDeg = 230.0, pipeMs = 2.8, pipeFeedback = 0.5,
             toneHz = 550.0, toneLoadHz = 2400.0, resonance = 1.4, drive = 2.1, bark = 0.3,
-            intake = 0.18, jitterDeg = 4.0, unevenAmp = 0.12, gain = 0.85,
+            intake = 0.18, jitterDeg = 4.0, unevenAmp = 0.12, limiterHz = 20.0, gain = 0.85,
         ),
         // flat-plane inline 4: even 180° spacing, the classic superbike scream
         EngineStyle(
             "i4", "I4", "Inline 4 superbike", even(4),
             idle = 1300.0, redline = 14500.0, pulseDeg = 200.0, pipeMs = 1.6, pipeFeedback = 0.45,
             toneHz = 1100.0, toneLoadHz = 4500.0, resonance = 1.1, drive = 2.2, bark = 0.2,
-            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.22, unevenDeg = 3.0, unevenWidth = 0.12, growl = 0.25, gain = 1.0,
+            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.22, unevenDeg = 3.0, unevenWidth = 0.12, growl = 0.25, limiterHz = 28.0, gain = 1.0,
         ),
         // crossplane inline 4: uneven 270-180-90-180 spacing, growls like a V4
         EngineStyle(
             "i4cp", "I4 CP", "Crossplane inline 4", doubleArrayOf(0.0, 270.0, 450.0, 540.0),
             idle = 1300.0, redline = 14000.0, pulseDeg = 200.0, pipeMs = 1.9, pipeFeedback = 0.45,
             toneHz = 900.0, toneLoadHz = 3800.0, resonance = 1.2, drive = 2.3, bark = 0.22,
-            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.15, unevenDeg = 2.0, unevenWidth = 0.1, gain = 0.9,
+            intake = 0.2, jitterDeg = 1.5, unevenAmp = 0.15, unevenDeg = 2.0, unevenWidth = 0.1, limiterHz = 26.0, gain = 0.9,
         ),
         EngineStyle(
             "v6", "V6 F1", "V6 turbo (F1 hybrid era)", even(6),
             idle = 4000.0, redline = 15000.0, pulseDeg = 110.0, pipeMs = 1.2, pipeFeedback = 0.4,
             toneHz = 1300.0, toneLoadHz = 4500.0, resonance = 1.0, drive = 1.8, bark = 0.15,
-            intake = 0.1, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.4, turbo = true, gain = 0.7,
+            intake = 0.1, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.4, turbo = true, limiterHz = 35.0, gain = 0.7,
         ),
         EngineStyle(
             "v8", "V8 F1", "V8 (F1 2006-2013)", even(8),
             idle = 4000.0, redline = 18000.0, pulseDeg = 100.0, pipeMs = 1.0, pipeFeedback = 0.4,
             toneHz = 1700.0, toneLoadHz = 6500.0, resonance = 1.0, drive = 2.4, bark = 0.15,
-            intake = 0.12, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.55, gain = 0.8,
+            intake = 0.12, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.55, limiterHz = 35.0, gain = 0.8,
         ),
         EngineStyle(
             "v10", "V10 F1", "V10 (F1 1989-2005)", even(10),
             idle = 4000.0, redline = 19000.0, pulseDeg = 90.0, pipeMs = 0.8, pipeFeedback = 0.4,
             toneHz = 2100.0, toneLoadHz = 8000.0, resonance = 1.0, drive = 2.6, bark = 0.15,
-            intake = 0.12, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.55, gain = 0.85,
+            intake = 0.12, jitterDeg = 0.5, unevenAmp = 0.28, unevenDeg = 4.0, unevenWidth = 0.15, growl = 0.55, limiterHz = 38.0, gain = 0.85,
         ),
     )
 

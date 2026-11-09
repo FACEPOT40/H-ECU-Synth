@@ -50,7 +50,7 @@ class EngineSim(var idle: Double = 1400.0, var limiter: Double = 9500.0) {
         when {
             cutLeft > 0 -> {                               // limiter cut: revs drop for a moment
                 cutLeft -= dt
-                rpm -= 5000 * dt
+                rpm -= 4000 * dt
                 fuelCut = true
             }
             rpm < target -> {
@@ -62,10 +62,9 @@ class EngineSim(var idle: Double = 1400.0, var limiter: Double = 9500.0) {
                 fuelCut = t < 0.02 && rpm > idle + 600
             }
         }
-        if (rpm >= limiter) {
-            rpm = limiter
-            cutLeft = 0.07
-            fuelCut = true
+        if (rpm >= limiter) {                              // short cuts: the revs hover at the
+            rpm = limiter                                  // limiter (the synth adds the fast
+            cutLeft = 0.03                                 // stutter itself)
         }
     }
 }

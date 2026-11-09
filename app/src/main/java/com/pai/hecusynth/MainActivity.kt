@@ -216,7 +216,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         info.text = "Bike %,d rpm · throttle %d %%%s%s".format(
             sim.rpm.toInt(), throttle.tps.toInt(),
             if (synth.camHigh) " · CAM" else "",
-            if (sim.fuelCut && sim.running) " · fuel cut" else "",
+            if (synth.limiting) " · LIMITER" else if (sim.fuelCut && sim.running) " · fuel cut" else "",
         )
         Choreographer.getInstance().postFrameCallback(this)
     }

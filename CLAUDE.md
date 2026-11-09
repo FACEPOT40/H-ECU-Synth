@@ -43,6 +43,14 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   the "Exhaust pops" switch turns them on) -> tanh saturation -> DC block -> soft limit.
   Input `set(bikeRpm, tps, fuelCut)` from any thread; rpm glides over the time since the last
   reading (12-150 ms) so 17/s K-line steps don't zipper.
+- Rev limiter (9 Nov, Pai: "should be tatatata, it's ta... ta... ta"): the synth makes the
+  stutter itself, since 17 K-line readings a second can't show a 20-40/s bounce. Active when
+  bike rpm >= `BikeRange.redline` - 250 with throttle > 30 % (on the bike this needs the real
+  limiter rpm in BikeRange, still fixed at 9500). Cuts whole firings, ~45 % of each pattern,
+  pattern length a whole number of engine cycles (`limiterFirings` / `limiterCut`) so it
+  can't drift against the bangs or cylinders; cut bangs at 0.03 (coasting cut stays 0.12);
+  revs sag 2 % per cut. Rate per style `limiterHz` (18-38/s), on a tuning slider.
+  `SynthTest.limiterStuttersFast` checks every style at K-line rate. Screens show "LIMITER".
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

@@ -371,7 +371,8 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
             g.color = Ink.GREY
             val tps = throttle()
             val cap = "rpm · ${st.name} · bike %,d rpm%s%s".format(sim.rpm.toInt(),
-                if (synth.camHigh) " · CAM" else "", if (sim.fuelCut && sim.running) " · fuel cut" else "")
+                if (synth.camHigh) " · CAM" else "",
+                if (synth.limiting) " · LIMITER" else if (sim.fuelCut && sim.running) " · fuel cut" else "")
             g.drawString(cap, (w - g.fontMetrics.stringWidth(cap)) / 2, (h * 0.40).toInt() + 42)
 
             // rev bar

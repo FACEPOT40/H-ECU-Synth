@@ -38,6 +38,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     // ---- read back for the screen
     @Volatile var camHigh = false
         private set
+    /** At the rev limiter: the synth is playing its own fast cut / fire stutter. */
+    @Volatile var limiting = false
+        private set
 
     // ---- inputs
     @Volatile private var inRpm = 0.0
@@ -69,7 +72,11 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var rampLeft = 0
     private var load = 0.0
     private var targetLoad = 0.0
-    private var cut = false
+    private var cutIn = false               // fuel cut as the bike / simulator reports it
+    private var cut = false                 // fuel cut right now (the input, or our own limiter)
+    private var atLimiter = false
+    private var limCount = 0                // firings counted at the limiter
+    private var limPos = 0.0                // where in the cut / fire pattern we are, 0..1
     private var lastTps = 0.0
     private val cam = CamSwitch()
     private var camMix = 0.0
@@ -165,10 +172,18 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             targetLoad = tps / 100.0
             if (st.turbo && lastTps - tps > 25 && boost > 0.3) bov = boost   // blow-off valve
             lastTps = tps
-            cut = inCut
+            cutIn = inCut
             sinceInput = 0
         }
         sinceInput += frames
+
+        // Rev limiter: a real one cuts and restores the fuel 20-40 times a second
+        // ("tatatata"). The K-line's ~17 readings a second can never show that, so at the
+        // redline with the throttle open the synth makes the stutter itself, at the style's rate.
+        // Like a real one it skips whole firings (e.g. 2 cut, 2 fire on a single), so the
+        // pattern can't drift against the bangs and wobble slowly ("ta.. ta..").
+        atLimiter = rpm >= range.redline - 250 && targetLoad > 0.3
+        limiting = atLimiter
 
         val high = cam.update(rpm, camRpm, camEnabled)
         if (high && !camHigh) camKick = 1.0
@@ -190,7 +205,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             camMix += (camTarget - camMix) * camCoef
             camKick *= kickDecay
 
-            val rpmS = range.toStyle(rpm, st)
+            if (!atLimiter) cut = cutIn
+            val dip = if (!atLimiter) 0.0 else if (cut) limPos / 0.45 else (1 - limPos) / 0.55
+            val rpmS = range.toStyle(rpm, st) * (1 - 0.02 * dip)   // revs sag in each cut
             val running = rpmS > 120
             val dDeg = rpmS * 6.0 / sr
             val fireHz = st.firingHz(rpmS)
@@ -205,6 +222,13 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                     next[c] += 720.0 - off[c]
                     off[c] = st.unevenDeg * uDeg[c] + st.jitterDeg * (1 - 0.8 * spread) * (rand01() * 2 - 1)
                     next[c] += off[c]
+                    if (running && atLimiter) {
+                        val m = st.limiterFirings(fireHz)
+                        val k = limCount++ % m
+                        val cutN = st.limiterCut(m)
+                        cut = k < cutN                          // first part cut, rest fire
+                        limPos = if (cut) 0.45 * k / cutN else 0.45 + 0.55 * (k - cutN) / (m - cutN)
+                    }
                     if (running) fire(c, st, over, rpmS)
                 }
                 val p = phase[c]
@@ -287,7 +311,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     }
 
     private fun fire(c: Int, st: EngineStyle, over: Double, rpmS: Double) {
-        val loud = if (cut) 0.12 else 0.28 + 0.72 * load
+        // a limiter cut is near silence (that's the "ta" gap); coasting with the fuel cut still
+        // pumps air through, so it keeps a soft sound
+        val loud = if (cut) (if (atLimiter) 0.03 else 0.12) else 0.28 + 0.72 * load
         // a little random loudness per firing, mostly for the slow singles and twins: on an
         // engine firing 1,000+ times a second it only adds hiss
         val rough = 0.08 * min(1.0, st.jitterDeg / 4.0)

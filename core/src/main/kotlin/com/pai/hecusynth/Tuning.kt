@@ -34,6 +34,7 @@ object Tuning {
         Param("unevenDeg", "Cyl. timing diff °", "How early / late each cylinder fires (fixed)", 0.0, 20.0, { it.unevenDeg }) { s, v -> s.copy(unevenDeg = v) },
         Param("unevenWidth", "Cyl. length diff", "How different each cylinder's pulse length is", 0.0, 0.6, { it.unevenWidth }) { s, v -> s.copy(unevenWidth = v) },
         Param("growl", "Growl", "Swell once per cycle: the low, rough engine part", 0.0, 1.0, { it.growl }) { s, v -> s.copy(growl = v) },
+        Param("limiterHz", "Limiter rate /s", "Rev limiter stutter speed: low = ta..ta..ta, high = tatatata", 5.0, 60.0, { it.limiterHz }) { s, v -> s.copy(limiterHz = v) },
         Param("gain", "Loudness", "Evens out the volume between styles", 0.1, 3.0, { it.gain }) { s, v -> s.copy(gain = v) },
     )
 

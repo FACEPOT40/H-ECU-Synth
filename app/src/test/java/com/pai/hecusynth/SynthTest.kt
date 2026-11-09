@@ -130,6 +130,50 @@ class SynthTest {
         }
     }
 
+    /** At the limiter the loudness must pulse at the style's limiter rate ("tatatata"), even
+     *  with bike data arriving only ~17 times a second. */
+    @Test fun limiterStuttersFast() {
+        for (st in Styles.ALL) {
+            val s = Synth(sr).apply { style = st }
+            val block = FloatArray(sr / 60)
+            val env = ArrayList<Double>()            // loudness 300 times a second
+            var e1 = 0.0
+            var e2 = 0.0
+            val a = 1.0 / (0.004 * sr)               // smoothed like a meter (~40 Hz), so faster
+            var count = 0                            // pulses (firing, growl) can't fold down
+            var since = 1.0
+            for (f in 0 until 60 * 3) {
+                since += 1 / 60.0
+                if (since >= 1 / 17.7) { since = 0.0; s.set(9500.0, 100.0, f % 2 == 0) }
+                s.render(block, block.size)
+                for (v in block) {
+                    e1 += (v.toDouble() * v - e1) * a
+                    e2 += (e1 - e2) * a
+                    if (f >= 30 && ++count % 160 == 0) env += sqrt(e2)
+                }
+            }
+            assertTrue("${st.id} should be limiting", s.limiting)
+            val mean = env.average()                 // only the pulsing, not the steady loudness
+            fun pw(f: Double): Double {
+                var re = 0.0
+                var im = 0.0
+                env.forEachIndexed { i, v0 ->
+                    val v = v0 - mean
+                    re += v * cos(2 * PI * f * i / 300); im += v * kotlin.math.sin(2 * PI * f * i / 300)
+                }
+                return re * re + im * im
+            }
+            // the strongest pulse near the style's limiter rate (whole firings + the rev sag move
+            // it a little) must beat every slower pulse: slower = the "ta.. ta.. ta" problem
+            fun scan(from: Double, to: Double) = generateSequence(from) { it + 0.25 }.takeWhile { it <= to }
+            val rate = scan(st.limiterHz * 0.75, st.limiterHz * 1.25).maxBy { pw(it) }
+            val at = pw(rate)
+            val slow = scan(3.0, st.limiterHz * 0.6).maxOf { pw(it) }
+            println("%-7s limiter stutter %.1f /s (target %.0f), %.1fx any slower pulse".format(st.id, rate, st.limiterHz, at / slow))
+            assertTrue("${st.id}: stutter at $rate/s $at vs slower $slow", at > 2 * slow)
+        }
+    }
+
     @Test fun bikeRangeMapsIdleAndRedline() {
         val b = BikeRange(1400.0, 9500.0)
         val v10 = Styles.byId("v10")
