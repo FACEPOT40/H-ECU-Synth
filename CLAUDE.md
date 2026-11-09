@@ -106,7 +106,15 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   > 30 %, leaks slowly). Throttle drop > 30 points with pressure > 0.25 and blow-off on ->
   `snap()`: Svf band 6.5 kHz Q 25 on noise, 15 ms up, tau 60 ms, random chatter; empties the
   pressure. Measured: pitch 3050 -> 7600 -> 3400 Hz; blow-off 91 % at 5.5-7.5 kHz, ~+3 dB over
-  the engine. **Pai: whistle and blow-off "good".** `TurboTest`; demo WAVs `lone_whistle`,
+  the engine. **Pai: whistle and blow-off "good".**
+  Fix 9 Nov (Pai: "BOV only plays on the rev limiter, it's supposed to play every time we let
+  off the throttle"): pressure needed high revs + a long pull (target = speed, > 0.25), and the
+  let-off check needed a > 30-point drop between two readings. Now pressure builds in ~0.15 s
+  toward throttle x (0.4 + 0.6 x speed) (> 20 % throttle), threshold 0.1, size 0.35 + 0.65 x
+  pressure; let-off = throttle < 15 % while the highest throttle held over the last 0.6 s
+  (`tpsPeak` / `peakAge` in Synth) is 30+ points higher, so slow releases count too.
+  `TurboTest.blowOffOnEveryLetOff` (short rev, quick and eased-off release, via Synth at
+  17/s). Backfire bangs keep their own snap check (> 40-point drop) unchanged. `TurboTest`; demo WAVs `lone_whistle`,
   `lone_bov`, `i4_turbo(_bov)`, `single_turbo(_bov)`. The phone's control column scrolls.
   **Turbo flutter: tried and DROPPED (9 Nov, Pai: "forget the turbo flutter, I don't have
   enough sample").** Tries, for the record: separate low thumps ("PVC instrument"), smooth

@@ -36,12 +36,14 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var chatter2 = 0.0
     private val bovBand = Svf().apply { set(6500.0, 25.0, sr) }
 
-    /** Throttle snapped shut: with [blowOff] on, the valve lets the boost out. */
+    /** Throttle let off: with [blowOff] on, the valve lets the boost out. Every let-off after
+     *  some throttle gives one (Pai: "every time we let off the throttle"), bigger after a
+     *  long pull. */
     fun snap(blowOff: Boolean) {
         val p = pressure
-        if (p < 0.25 || !blowOff) return
+        if (p < 0.1 || !blowOff) return
         bovT = 0.0
-        bovSize = p
+        bovSize = 0.35 + 0.65 * p
         pressure = 0.0
     }
 
@@ -53,9 +55,11 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // spool: up with throttle and revs (~0.6 s), down when let go (~0.45 s: clip ~7.7 -> 2.6 kHz in ~1.2 s)
         val target = if (running) (0.12 + 0.88 * ((revs - 0.1) / 0.6).coerceIn(0.0, 1.0)) * (0.1 + 0.9 * load) else 0.0
         speed += (target - speed) / ((if (target > speed) 0.6 else 0.45) * sr)
-        // boost builds while the throttle is open, leaks away slowly when it isn't
-        val pTarget = if (load > 0.3) speed else 0.0
-        pressure += (pTarget - pressure) / ((if (pTarget > pressure) 0.25 else 1.5) * sr)
+        // boost builds quickly with throttle (more with turbo speed), leaks away slowly when
+        // it's shut. (It used to need high revs and a long pull, so only the limiter got a
+        // blow-off.)
+        val pTarget = if (load > 0.2) load * (0.4 + 0.6 * speed) else 0.0
+        pressure += (pTarget - pressure) / ((if (pTarget > pressure) 0.15 else 1.5) * sr)
 
         var out = 0.0
 

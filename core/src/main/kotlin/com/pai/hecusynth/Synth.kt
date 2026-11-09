@@ -83,6 +83,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var limCount = 0                // firings counted at the limiter
     private var limPos = 0.0                // where in the cut / fire pattern we are, 0..1
     private var lastTps = 0.0
+    private var tpsPeak = 0.0               // highest recent throttle, held 0.6 s (let-off check)
+    private var peakAge = 0                 // samples since tpsPeak was set
     private val cam = CamSwitch()
     private var camMix = 0.0
     private var camKick = 0.0
@@ -188,8 +190,15 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             rampLeft = len
             val tps = inTps.coerceIn(0.0, 100.0)
             targetLoad = tps / 100.0
-            // throttle snapped shut: the blow-off valve lets the boost out
-            if (lastTps - tps > 30) turboFx.snap(blowOff)
+            // let-off: the throttle was 30+ points higher within the last 0.6 s and is now
+            // nearly shut, however fast or slowly it was closed -> the blow-off valve lets the
+            // boost out
+            if (tps >= tpsPeak) { tpsPeak = tps; peakAge = 0 }
+            if (tps < 15 && tpsPeak - tps > 30) {
+                turboFx.snap(blowOff)
+                tpsPeak = tps
+                peakAge = 0
+            }
             // throttle snapped shut from high revs: a big bang leading a burst of pops
             if (bangs && lastTps - tps > 40 && lastSpread > 0.4) bang()
             lastTps = tps
@@ -197,6 +206,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             sinceInput = 0
         }
         sinceInput += frames
+        peakAge += frames
+        if (peakAge > 0.6 * sr) { tpsPeak = inTps.coerceIn(0.0, 100.0); peakAge = 0 }   // forget after 0.6 s
 
         // Rev limiter: a real one cuts and restores the fuel 20-40 times a second
         // ("tatatata"). The K-line's ~17 readings a second can never show that, so at the

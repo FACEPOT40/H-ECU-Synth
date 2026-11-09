@@ -65,6 +65,43 @@ class TurboTest {
         assertTrue(tail < rms(head) * 0.01)
     }
 
+    /** Pai: the blow-off only played at the limiter. Every let-off after some throttle must
+     *  give one: a short rev released at once, and a slower release over ~0.3 s. Run through
+     *  the whole Synth at the K-line's ~17 readings a second. */
+    @Test fun blowOffOnEveryLetOff() {
+        fun tsss(blowOff: Boolean, release: (Double) -> Double): Double {
+            val s = Synth(sr).apply { style = Styles.byId("i4"); this.blowOff = blowOff }
+            val sim = EngineSim()
+            sim.start()
+            val frame = FloatArray(sr / 60)
+            val after = ArrayList<Double>()
+            var since = 1.0
+            for (f in 0 until 60 * 4) {
+                val t = f / 60.0
+                val tps = release(t)
+                sim.step(1 / 60.0, tps)
+                since += 1 / 60.0
+                if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
+                s.render(frame, frame.size)
+                if (t in 2.0..2.8) frame.forEach { after += it.toDouble() }
+            }
+            val x = after.toDoubleArray()
+            return generateSequence(6000.0) { it + 50 }.takeWhile { it <= 7000 }.sumOf { power(x, it) }
+        }
+        val quick: (Double) -> Double = { t -> if (t in 1.4..2.0) 60.0 else 0.0 }              // 0.6 s at 60 %, let go
+        val slow: (Double) -> Double = { t -> when {                                            // 0.6 s at 60 %, eased off
+            t in 1.4..2.0 -> 60.0
+            t in 2.0..2.3 -> 60.0 * (2.3 - t) / 0.3
+            else -> 0.0
+        } }
+        for ((name, r) in listOf("quick" to quick, "slow" to slow)) {
+            val on = tsss(true, r)
+            val off = tsss(false, r)
+            println("blow-off after a short rev, %s release: %.0fx more 6-7 kHz than with it off".format(name, on / off))
+            assertTrue("$name release: no blow-off ($on vs $off)", on > off * 20)
+        }
+    }
+
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)
