@@ -121,6 +121,22 @@ class TurboTest {
         }
     }
 
+    /** The blow-off volume scales only the blow-off: half = -6 dB, 0 = gone. */
+    @Test fun blowOffVolumeScalesIt() {
+        fun blow(vol: Double): Double {
+            val t = turbo().apply { blowOffVolume = vol }
+            t.run(1.5, 1.0, 0.8, false)
+            t.snap(blowOff = true)
+            return rms(t.run(0.3, 0.0, 0.8, false))
+        }
+        val full = blow(1.0)
+        val db = 20 * kotlin.math.log10(blow(0.5) / full)
+        println("blow-off volume 50 %%: %.1f dB".format(db))
+        assertEquals(-6.0, db, 0.3)
+        assertEquals(0.0, blow(0.0), 0.0)
+        assertTrue(blow(2.0) > full * 1.9)
+    }
+
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)

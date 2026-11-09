@@ -42,6 +42,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     /** Blow-off pitch in Hz: 6500 = the original sound; Pai picked 8000 (the app default, set
      *  by [Synth]). Takes effect at the next blow-off. */
     var blowOffPitch = 6500.0
+    /** Blow-off loudness, 0..2 (1 = the tuned level). Applies right away. */
+    var blowOffVolume = 1.0
 
     /** Throttle let off: with [blowOff] on, the valve lets the boost out. Every let-off after
      *  some throttle gives one (Pai: "every time we let off the throttle"), bigger after a
@@ -90,7 +92,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             chatter2 += (chatter - chatter2) * 0.01
             val mod = (0.6 + 4.0 * chatter2).coerceIn(0.15, 1.3)
             bovBand.process(rnd() * 2 - 1)
-            out += bovBand.band * env * mod * bovSize * BLOW_OFF * bovLevel
+            out += bovBand.band * env * mod * bovSize * BLOW_OFF * bovLevel * blowOffVolume
             bovT += 1 / sr
             if (bovT > 0.4) bovT = -1.0
         }

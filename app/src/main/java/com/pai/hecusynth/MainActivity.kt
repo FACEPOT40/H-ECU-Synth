@@ -52,6 +52,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             turbo = prefs.getBoolean("turbo", false)
             blowOff = prefs.getBoolean("blow_off", false)
             blowOffPitch = prefs.getInt("blow_off_pitch", 8000).toDouble()
+            blowOffVolume = prefs.getInt("blow_off_volume", 100) / 100.0
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -148,6 +149,15 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.blowOffPitch = 5000.0 + v * 100
             prefs.edit().putInt("blow_off_pitch", synth.blowOffPitch.toInt()).apply()
             showBovPitch()
+        })
+        val bovVolLabel = uiText(12f, Look.GREY)
+        fun showBovVol() { bovVolLabel.text = "Blow-off volume ${(synth.blowOffVolume * 100).toInt()} %" }
+        showBovVol()
+        controls.addView(bovVolLabel)
+        controls.addView(seek(200, (synth.blowOffVolume * 100).toInt()) { v ->
+            synth.blowOffVolume = v / 100.0
+            prefs.edit().putInt("blow_off_volume", v).apply()
+            showBovVol()
         })
         controls.addView(switch("Bike data rate (17/s)", bikeRate) { on ->
             bikeRate = on

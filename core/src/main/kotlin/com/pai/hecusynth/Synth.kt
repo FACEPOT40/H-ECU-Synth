@@ -44,6 +44,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var turbo = false             // turbo whistle
     @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
     @Volatile var blowOffPitch = 8000.0     // Hz; Pai's pick (9 Nov); 6500 = the original
+    @Volatile var blowOffVolume = 1.0       // 0..2, 1 = the tuned level
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -346,6 +347,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             engineMix += ((if (engineSound) 1.0 else 0.0) - engineMix) * engineCoef
             pre *= engineMix
 
+            turboFx.blowOffVolume = blowOffVolume
             pre += turboFx.next(load, spread, running, turbo || st.turbo)
 
             pre += backfire.fx * 0.9                 // pops and bangs, after the engine's rasp

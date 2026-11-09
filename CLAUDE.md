@@ -131,6 +131,10 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   8000 Hz (`Synth.blowOffPitch`, desktop slider 80, phone pref default 8000; labels show
   "(default)" at 8.0 and "(original)" at 6.5). `Turbo.blowOffPitch` alone stays 6500 for the
   tests that measure the original.
+  Blow-off volume (9 Nov, Pai): `Synth.blowOffVolume` / `Turbo.blowOffVolume` 0..2 (1 = tuned
+  level), scales only the blow-off, applies at once; desktop slider "Blow-off volume" 0-200 %
+  and phone slider (pref `blow_off_volume`, default 100). Above 100 % the output's soft
+  limiter rounds it off. `TurboTest.blowOffVolumeScalesIt`.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the

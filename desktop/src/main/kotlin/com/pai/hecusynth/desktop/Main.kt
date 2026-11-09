@@ -173,6 +173,12 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
                 synth.blowOffPitch = v * 100.0
                 bovPitchLabel.text = "%.1f kHz%s".format(v / 10.0, when (v) { 80 -> " (default)"; 65 -> " (original)"; else -> "" })
             }, bovPitchLabel))
+        val bovVolLabel = label("", 12f, Ink.GREY)
+        c.add(row(label("Blow-off volume", 13f, Ink.GREY),
+            slider(0, 200, 100) { v ->
+                synth.blowOffVolume = v / 100.0
+                bovVolLabel.text = "$v %"
+            }, bovVolLabel))
         c.add(row(check("Exhaust pops", false) { synth.crackles = it },
             check("Backfire bangs", false) { synth.bangs = it },
 
