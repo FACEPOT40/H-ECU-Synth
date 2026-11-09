@@ -131,7 +131,12 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   `FLUTTER` 1.0, whistle chopped harder. Measured: 300-1000 Hz 38-40 %, > 4 kHz 15-18 %,
   spacing 32 ms (spread 11-17), dips 0.56-0.80; on the I4 demo ~+9 dB over coasting (v2 +3.5).
   `TurboTest.flutterChuffsFastThenSlower` now measures median "tu" gaps (35 -> 50 ms), since
-  the rhythm is irregular on purpose. Flutter v3 not yet heard by Pai.
+  the rhythm is irregular on purpose.
+  Pai on v3: "sounds like heavy raining drop on zinc sheet", "the earlier one sound better".
+  Lesson: irregular sharp mid-range hits = rain on a roof. REVERTED to v2 (smooth wobbling air,
+  regular rhythm) and only raised `FLUTTER` 0.5 -> 0.9 (+5 dB): ~+7-9 dB over coasting on the
+  I4 / single demos. If more aggression is wanted later, change one thing at a time and keep
+  the regular, smooth wobble. Louder v2 not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
