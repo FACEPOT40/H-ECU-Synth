@@ -59,7 +59,7 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   buttons, rev meter + throttle bar (mouse drag), Start/Stop (Enter), volume, cam, pops, bike
   data rate, Record WAV; tuning panel on the right (one slider per `Tuning.PARAMS`, help under
   each), "Copy as Kotlin", "Reset this style". Keys: hold Space/Up = 100 %, 1..9 = 10..90 %,
-  0 = 100 %. Tuned values persist in `%USERPROFILE%\.hecusynth	uning.properties` (desktop only;
+  0 = 100 %. Tuned values persist in `%USERPROFILE%\.hecusynth\tuning.properties` (desktop only;
   the phone gets them when pasted into Engines.kt). `DesktopAudio.kt`: javax.sound 16-bit
   48 kHz, ~40 ms buffer. Run: `run_desktop.bat` (= `gradlew :desktop:run`). Seen working 9 Nov
   (screenshot + Pai revving it).
