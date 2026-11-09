@@ -91,7 +91,8 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   (hold + 5 x tau + 50-150 ms) before the next; a pop asked for meanwhile is skipped, a bang
   always goes. Triggers: pops = one when coasting starts, then ~1.5/s while coasting, ~6/s
   chances at the limiter; bangs = throttle snap + ~0.3/s while coasting.
-  `FxTest.singleBlastThenQuiet`. New pop length / no-bursts not yet heard by Pai.
+  `FxTest.singleBlastThenQuiet`. **Confirmed by Pai 9 Nov: "exactly what I want"** (bang,
+  pop length, no bursts). Keep this sound; tune only on request.
   Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
