@@ -46,7 +46,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             volume = prefs.getInt("volume", 70) / 100.0
             camEnabled = prefs.getBoolean("cam_on", false)
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
-            crackles = prefs.getBoolean("crackles", true)
+            crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())

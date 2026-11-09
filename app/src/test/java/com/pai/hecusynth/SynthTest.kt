@@ -57,7 +57,7 @@ class SynthTest {
 
     @Test fun boundedAndFinite() {
         for (st in Styles.ALL) {
-            val s = Synth(sr).apply { style = st; volume = 1.0; camEnabled = true; camRpm = 5000.0 }
+            val s = Synth(sr).apply { style = st; volume = 1.0; camEnabled = true; camRpm = 5000.0; crackles = true }
             val sim = EngineSim()
             sim.start()
             val block = FloatArray(800)
@@ -124,12 +124,13 @@ class SynthTest {
         assertFalse(cam.update(7000.0, 6500.0, false))   // switched off in the settings
     }
 
-    /** Writes one rev run per style to app/build/demo-wav/ so the sounds can be heard on the PC. */
+    /** Writes one rev run per style to app/build/demo-wav/ so the sounds can be heard on the PC:
+     *  `<style>.wav` is the stock sound, `<style>_pops.wav` the same run with exhaust pops on. */
     @Test fun demoWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        for (st in Styles.ALL) {
-            val s = Synth(sr).apply { style = st; camEnabled = true; camRpm = 6500.0 }
+        for (st in Styles.ALL) for (pops in listOf(false, true)) {
+            val s = Synth(sr).apply { style = st; camEnabled = true; camRpm = 6500.0; crackles = pops }
             val sim = EngineSim()
             val pcm = ArrayList<Float>()
             val frame = FloatArray(sr / 60)
@@ -149,7 +150,7 @@ class SynthTest {
                 s.render(frame, frame.size)
                 frame.forEach { pcm += it }
             }
-            writeWav(File(dir, "${st.id}.wav"), pcm)
+            writeWav(File(dir, if (pops) "${st.id}_pops.wav" else "${st.id}.wav"), pcm)
         }
         println("demo WAVs in $dir")
     }

@@ -33,7 +33,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var volume = 0.7
     @Volatile var camEnabled = false
     @Volatile var camRpm = 6500.0          // bike rpm
-    @Volatile var crackles = true
+    @Volatile var crackles = false          // exhaust pops: an extra, off by default
 
     // ---- read back for the screen
     @Volatile var camHigh = false

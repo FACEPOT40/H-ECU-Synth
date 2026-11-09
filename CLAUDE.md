@@ -27,7 +27,8 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   `BikeRange` (bike idle/redline -> style idle/redline), `CamSwitch` (300 rpm hysteresis).
 - `Synth.kt`: the sound, pure Kotlin. Crank -> per-cylinder exhaust pulse + combustion noise ->
   pipe echo (comb) -> tone filter (`Svf`, opens with throttle and cam) -> intake roar, turbo
-  (V6), pops (fuel cut at high rpm, ~12/s) -> tanh saturation -> DC block -> soft limit.
+  (V6), pops (fuel cut at high rpm, ~12/s; OFF by default, Pai 9 Nov: "too much pop pop pop",
+  the "Exhaust pops" switch turns them on) -> tanh saturation -> DC block -> soft limit.
   Input `set(bikeRpm, tps, fuelCut)` from any thread; rpm glides over the time since the last
   reading (12-150 ms) so 17/s K-line steps don't zipper.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
@@ -44,7 +45,8 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
 `gradlew.bat testDebugUnitTest assembleDebug` with `JAVA_HOME` = Android Studio's `jbr`.
 `SynthTest` checks silence with the engine off, no NaN / out of range, pitch locked to the
 crank for every style, throttle makes it louder; and writes `app/build/demo-wav/<style>.wav`
-(start, idle, blip, flat out into the limiter, let go, stop) to listen to on the PC.
+(start, idle, blip, flat out into the limiter, let go, stop) to listen to on the PC, plus
+`<style>_pops.wav` with the pops on.
 Debug APK copied to `dist/` (gitignored).
 
 ## Status
