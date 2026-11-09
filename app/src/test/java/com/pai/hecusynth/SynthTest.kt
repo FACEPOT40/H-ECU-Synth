@@ -201,12 +201,12 @@ class SynthTest {
         // stock, pops only, bangs only
         // stock, pops, bangs for every style; the turbo extras on the I4 and the single
         val runs = Styles.ALL.flatMap { st -> listOf("", "_pops", "_bangs").map { st to it } } +
-            listOf("i4", "single").flatMap { id -> listOf("_turbo", "_turbo_bov").map { Styles.byId(id) to it } }
+            listOf("i4", "single").flatMap { id -> listOf("_turbo", "_turbo_bov", "_turbo_flutter").map { Styles.byId(id) to it } }
         for ((st, fx) in runs) {
             val s = Synth(sr).apply {
                 style = st; camEnabled = true; camRpm = 6500.0
                 crackles = fx == "_pops"; bangs = fx == "_bangs"
-                turbo = fx.startsWith("_turbo"); blowOff = fx == "_turbo_bov"
+                turbo = fx.startsWith("_turbo"); blowOff = fx == "_turbo_bov"; flutter = fx == "_turbo_flutter"
             }
             val sim = EngineSim()
             val pcm = ArrayList<Float>()

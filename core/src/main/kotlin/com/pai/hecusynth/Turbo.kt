@@ -18,6 +18,15 @@ import kotlin.math.sin
  * like an SQV-type valve). Three tries at a separate "whistle" blow-off all sounded like a
  * bell to Pai, so it's this same sound, only shifted in pitch. (A turbo flutter was tried and dropped: not enough reference samples to get
  * it right, Pai's call.)
+ *
+ * Turbo flutter = compressor SURGE (Pai, 9 Nov, 2nd try: "a stutututu that comes from the
+ * extremely high boost that suddenly got nowhere else to go ... aggressively come back to the
+ * turbine"). Measured from four surge clips Pai sent (never shipped): it is SLOW and DEEP -
+ * each "tu" is a swell of air ~80-150 ms long (rise ~40-60 ms, fall ~30-50 ms) with small
+ * 20-30 ms ripples inside, the sound drops to ~0.1 between them, ~6-10 "tu"s a second slowing
+ * down, mostly 300-1000 Hz (48-85 %) with some 1-4 kHz, each "tu" darker than the last
+ * (~3.5 kHz -> ~1 kHz bright), ~0.4-0.85 s in all. (The first try wobbled at 38/s, too fast
+ * and too shallow; separate thumps = "PVC", irregular sharp hits = "rain on zinc".)
  * Plain Kotlin, driven by [Synth].
  */
 class Turbo(private val sr: Double, private val rnd: () -> Double) {
@@ -45,17 +54,45 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     /** Blow-off loudness, 0..2 (1 = the tuned level). Applies right away. */
     var blowOffVolume = 1.0
 
+    // surge ("turbo flutter")
+    private var surgeIdx = 0            // which "tu"
+    private var surgeTotal = 0          // 0 = no surge
+    private var surgeT = 0.0            // seconds into this "tu"
+    private var surgeLen = 0.1          // this "tu"'s length
+    private var surgeSize = 0.0         // boost at the let-off
+    private var tuAmp = 0.0
+    private val surgeBody = Svf()       // the "tu": air ~300-1000 Hz (wide, no ringing note)
+    private val surgeEdge = Svf()       // the "st": a brighter edge at each "tu"'s start
+
+    private fun startTu() {
+        val prog = surgeIdx.toDouble() / surgeTotal
+        surgeT = 0.0
+        surgeLen = (1.0 / (10.0 - 4.0 * prog)) * (0.9 + 0.2 * rnd())       // ~10 -> 6 a second
+        surgeBody.set(850.0 - 300.0 * prog, 2.0, sr)                        // darker each time
+        surgeEdge.set(1800.0 - 800.0 * prog, 2.0, sr)
+        tuAmp = surgeSize * (1 - 0.55 * prog) * (0.85 + 0.3 * rnd())
+    }
+
     /** Throttle let off: with [blowOff] on, the valve lets the boost out. Every let-off after
      *  some throttle gives one (Pai: "every time we let off the throttle"), bigger after a
      *  long pull. */
-    fun snap(blowOff: Boolean) {
+    fun snap(blowOff: Boolean, flutter: Boolean = false) {
         val p = pressure
-        if (p < 0.1 || !blowOff) return
-        bovT = 0.0
-        bovSize = 0.35 + 0.65 * p
-        val hz = blowOffPitch.coerceIn(PITCH_MIN, PITCH_MAX)
-        bovBand.set(hz, 25.0, sr)                       // same sharpness, only the pitch moves
-        bovLevel = kotlin.math.sqrt(6500.0 / hz)        // a higher band holds more noise: same loudness
+        if (p < 0.1 || !(blowOff || flutter)) return
+        if (blowOff) {
+            bovT = 0.0
+            bovSize = 0.35 + 0.65 * p
+            val hz = blowOffPitch.coerceIn(PITCH_MIN, PITCH_MAX)
+            bovBand.set(hz, 25.0, sr)                       // same sharpness, only the pitch moves
+            bovLevel = kotlin.math.sqrt(6500.0 / hz)        // a higher band holds more noise: same loudness
+        }
+        // surge needs real boost (a proper pull, not a blip); more boost = more, louder "tu"s
+        if (flutter && p > 0.4) {
+            surgeSize = p
+            surgeTotal = (3 + 6 * p).toInt()
+            surgeIdx = 0
+            startTu()
+        }
         pressure = 0.0
     }
 
@@ -75,6 +112,30 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
 
         var out = 0.0
 
+        // surge: each "tu" swells (40 %), holds briefly, falls; deep gap (~0.08) between; the
+        // whistle (if on) is chopped with it
+        var gate = 1.0
+        if (surgeTotal > 0) {
+            val ph = surgeT / surgeLen
+            val env = when {
+                ph < 0.4 -> sin(ph / 0.4 * PI / 2).let { it * it }
+                ph < 0.55 -> 1.0
+                else -> ((1 - ph) / 0.45).let { it * it }
+            }
+            val ripple = 1 + 0.25 * sin(2 * PI * 35 * surgeT)                 // the 20-30 ms ripples
+            val nz = rnd() * 2 - 1
+            surgeBody.process(nz)
+            surgeEdge.process(nz)
+            val st = env * exp(-ph * 4)                                       // edge mostly at the start
+            out += (surgeBody.band * 1.0 + surgeEdge.band * 0.25 * st) * (0.18 + 0.82 * env) * ripple * tuAmp * SURGE
+            gate = 0.25 + 0.75 * env
+            surgeT += 1 / sr
+            if (surgeT >= surgeLen) {
+                surgeIdx++
+                if (surgeIdx < surgeTotal) startTu() else surgeTotal = 0
+            }
+        }
+
         // whistle
         if (whistle && speed > 0.01) {
             wobble += (rnd() * 2 - 1 - wobble) * 0.001
@@ -82,7 +143,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             whistlePh += hz / sr
             if (whistlePh >= 1) whistlePh -= 1.0
             val w = sin(2 * PI * whistlePh) + 0.15 * sin(4 * PI * whistlePh)
-            out += w * WHISTLE * speed.pow(1.5) * (0.35 + 0.65 * load)
+            out += w * WHISTLE * speed.pow(1.5) * (0.35 + 0.65 * load) * gate
         }
 
         // blow-off: up in 15 ms, fades over ~150 ms, chattering
@@ -103,6 +164,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // levels next to the engine (calibrated with TurboTest / the demo WAVs)
         const val WHISTLE = 0.35
         const val BLOW_OFF = 2.4
+        const val SURGE = 3.0           // as loud as the blow-off or more on the demos
         const val PITCH_MIN = 5000.0
         const val PITCH_MAX = 11000.0
     }

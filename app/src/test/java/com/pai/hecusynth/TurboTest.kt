@@ -137,6 +137,54 @@ class TurboTest {
         assertTrue(blow(2.0) > full * 1.9)
     }
 
+    /** Surge measured like the clips: slow, deep "tu"s (~6-10 a second, gaps down to ~0.1),
+     *  mostly 300-1000 Hz, each darker; only after real boost. Writes lone_surge.wav. */
+    @Test fun surgeIsSlowAndDeep() {
+        val t = turbo()
+        t.run(0.3, 0.5, 0.3, false)                             // a blip: not enough boost
+        t.snap(blowOff = false, flutter = true)
+        assertEquals(0.0, t.run(0.3, 0.0, 0.3, false).maxOf { abs(it) }, 0.0)
+
+        t.run(1.5, 1.0, 0.8, false)                             // a real pull
+        t.snap(blowOff = false, flutter = true)
+        val x = t.run(1.5, 0.0, 0.8, false)
+        val env = x.toList().chunked(192).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }   // every 4 ms
+        val top = env.max()
+        val peaks = (1 until env.size - 1).filter { i ->
+            env[i] >= env.subList(maxOf(0, i - 10), minOf(env.size, i + 11)).max() && env[i] > 0.3 * top
+        }
+        val gaps = peaks.zipWithNext { a, b -> (b - a) * 4 }
+        val dips = peaks.zipWithNext { a, b -> env.subList(a, b).min() / minOf(env[a], env[b]) }
+        println("surge: %d 'tu's, gaps ms %s, dips %s".format(peaks.size, gaps, dips.joinToString(" ") { "%.2f".format(it) }))
+        println("surge loudness every 4 ms: " + env.take(300).joinToString("") { "${(it / top * 9).toInt()}" })
+        assertTrue("'tu's: ${peaks.size}", peaks.size in 4..10)
+        assertTrue("gaps $gaps", gaps.all { it in 80..220 })
+        assertTrue("dips $dips", dips.all { it < 0.4 })
+        System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() }?.let { d -> File(d).mkdirs(); write(File(d, "lone_surge.wav"), x) }
+    }
+
+    /** Demo: the "turbo Wave" with surge - single, engine muted, turbo whistle + flutter. */
+    @Test fun turboOnlySurgeWav() {
+        val d = System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return
+        val s = Synth(sr).apply { style = Styles.byId("single"); engineSound = false; turbo = true; flutter = true }
+        val sim = EngineSim()
+        val pcm = ArrayList<Double>()
+        val frame = FloatArray(sr / 60)
+        var since = 1.0
+        for (f in 0 until 60 * 9) {
+            val t = f / 60.0
+            if (f == 0) sim.start()
+            val tps = if (t in 1.5..3.5 || t in 5.0..6.5) 100.0 else 0.0
+            sim.step(1 / 60.0, tps)
+            since += 1 / 60.0
+            if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
+            s.render(frame, frame.size)
+            frame.forEach { pcm += it.toDouble() }
+        }
+        File(d).mkdirs()
+        write(File(d, "single_turbo_only_flutter.wav"), pcm.toDoubleArray())
+    }
+
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)

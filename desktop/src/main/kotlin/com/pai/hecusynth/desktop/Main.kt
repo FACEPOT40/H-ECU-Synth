@@ -166,7 +166,8 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
             slider(30, 90, 65) { synth.camRpm = it * 100.0; showCam() }, camLabel))
         c.add(row(check("Engine sound", true) { synth.engineSound = it },
             check("Turbo", false) { synth.turbo = it },
-            check("Blow-off valve", false) { synth.blowOff = it }))
+            check("Blow-off valve", false) { synth.blowOff = it },
+            check("Turbo flutter", false) { synth.flutter = it }))
         val bovPitchLabel = label("", 12f, Ink.GREY)
         c.add(row(label("Blow-off pitch", 13f, Ink.GREY),
             slider(50, 110, 80) { v ->

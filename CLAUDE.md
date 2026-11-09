@@ -145,8 +145,22 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   **Turbo flutter: tried and DROPPED (9 Nov, Pai: "forget the turbo flutter, I don't have
   enough sample").** Tries, for the record: separate low thumps ("PVC instrument"), smooth
   wobbling air (closest, "not aggressive enough" even louder / deeper), irregular sharp
-  low-mid chuffs ("heavy rain on a zinc sheet"). Don't bring it back unless Pai asks; if he
-  does, start from the smooth wobbling-air version and get more reference clips first.
+  low-mid chuffs ("heavy rain on a zinc sheet").
+  **Brought back 9 Nov as compressor SURGE** (Pai sent `turbo_flutter1-4.wav`, measured only:
+  "not a normal turbo flutter ... stutututu from extremely high boost that suddenly got
+  nowhere to go"). Measured: SLOW and DEEP - each "tu" a swell of air ~80-150 ms (rise ~40-60,
+  fall ~30-50 ms) with 20-30 ms ripples inside, drops to ~0.1 between, ~6-10 "tu"s/s slowing,
+  300-1000 Hz 50-78 %, each "tu" darker (~3.5 -> ~1 kHz), 0.4-0.85 s. The first tries were
+  ~4-6x too fast (38/s) and too shallow. Model in `Turbo.kt` (switch `Synth.flutter`
+  "Turbo flutter", desktop + phone pref `flutter`): `snap(blowOff, flutter)`; surge only with
+  pressure > 0.4 (a real pull), 3 + 6 x pressure "tu"s; each "tu" = noise through `Svf`
+  850 -> 550 Hz Q 2 + a 1.8 -> 1.0 kHz Q 2 "st" edge (x0.25, mostly at the start), envelope
+  sin^2 rise 40 % / hold 15 % / fall, floor 0.18, ripple 1 + 0.25 sin(35 Hz), length
+  1 / (10 - 4 x progress) s (+-10 %), level x (1 - 0.55 x progress), SURGE 3.0; whistle
+  chopped (0.25 + 0.75 env). Measured: 8 "tu"s, gaps 100-160 ms, dips 0.08-0.14, 300-1000 Hz
+  69 %, 1-2 kHz 20 %, ~+7-9 dB over coasting (= blow-off). `TurboTest.surgeIsSlowAndDeep`,
+  demos `lone_surge`, `i4/single_turbo_flutter`, `single_turbo_only_flutter`. Not yet heard
+  by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

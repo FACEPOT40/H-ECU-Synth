@@ -51,6 +51,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             engineSound = prefs.getBoolean("engine_sound", true)
             turbo = prefs.getBoolean("turbo", false)
             blowOff = prefs.getBoolean("blow_off", false)
+            flutter = prefs.getBoolean("flutter", false)
             blowOffPitch = prefs.getInt("blow_off_pitch", 8000).toDouble()
             blowOffVolume = prefs.getInt("blow_off_volume", 100) / 100.0
         }
@@ -137,6 +138,10 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         controls.addView(switch("Blow-off valve", synth.blowOff) { on ->
             synth.blowOff = on
             prefs.edit().putBoolean("blow_off", on).apply()
+        })
+        controls.addView(switch("Turbo flutter", synth.flutter) { on ->
+            synth.flutter = on
+            prefs.edit().putBoolean("flutter", on).apply()
         })
         val bovPitchLabel = uiText(12f, Look.GREY)
         fun showBovPitch() {
