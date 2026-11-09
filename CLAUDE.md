@@ -205,7 +205,9 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   to Bike with the cable already in. `showSource` only recolors on a state change (it runs
   every frame in Bike mode). `Ui.kt`: `uiCard`, `TextView.chip`, `Look.GREEN`.
   **Pai 9 Nov: "It's perfect since it was for fun. Let's stop it like this."** Project paused
-  here: everything works on the phone and the bike as Pai wants. Not on GitHub (ask first).
+  here: everything works on the phone and the bike as Pai wants.
+  On GitHub since 9 Nov: https://github.com/FACEPOT40/H-ECU-Synth (PRIVATE; Pai's choice: keep
+  it private for now). Push only when Pai asks.
 - `MainActivity.kt`: simulator screen (style buttons, rev meter, Start/Stop engine, volume,
   cam crossover switch + rpm, exhaust pops, "Bike data rate (17/s)"), throttle on the right.
   Settings in SharedPreferences "synth". Audio runs only while the screen is open.
