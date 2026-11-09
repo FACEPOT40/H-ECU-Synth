@@ -141,7 +141,7 @@ class TurboTest {
      *  mostly 300-1000 Hz, each darker; only after real boost. Writes lone_surge.wav. */
     @Test fun surgeIsSlowAndDeep() {
         val t = turbo()
-        t.run(0.3, 0.5, 0.3, false)                             // a blip: not enough boost
+        t.run(0.15, 0.5, 0.3, false)                            // a quick blip: not enough boost
         t.snap(blowOff = false, flutter = true)
         assertEquals(0.0, t.run(0.3, 0.0, 0.3, false).maxOf { abs(it) }, 0.0)
 
@@ -163,9 +163,11 @@ class TurboTest {
         System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() }?.let { d -> File(d).mkdirs(); write(File(d, "lone_surge.wav"), x) }
     }
 
-    /** Demo: the "turbo Wave" with surge - single, engine muted, turbo whistle + flutter. */
+    /** Demo: the "turbo Wave" with surge - single, engine muted, turbo whistle + flutter; flat
+     *  out, and at mid revs only (40 % throttle, up to ~5,800 rpm). */
     @Test fun turboOnlySurgeWav() {
         val d = System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return
+        for ((name, open) in listOf("single_turbo_only_flutter" to 100.0, "single_turbo_only_flutter_midrpm" to 40.0)) {
         val s = Synth(sr).apply { style = Styles.byId("single"); engineSound = false; turbo = true; flutter = true }
         val sim = EngineSim()
         val pcm = ArrayList<Double>()
@@ -174,7 +176,7 @@ class TurboTest {
         for (f in 0 until 60 * 9) {
             val t = f / 60.0
             if (f == 0) sim.start()
-            val tps = if (t in 1.5..3.5 || t in 5.0..6.5) 100.0 else 0.0
+            val tps = if (t in 1.5..3.5 || t in 5.0..6.5) open else 0.0
             sim.step(1 / 60.0, tps)
             since += 1 / 60.0
             if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
@@ -182,7 +184,43 @@ class TurboTest {
             frame.forEach { pcm += it.toDouble() }
         }
         File(d).mkdirs()
-        write(File(d, "single_turbo_only_flutter.wav"), pcm.toDoubleArray())
+        write(File(d, "$name.wav"), pcm.toDoubleArray())
+        }
+    }
+
+    /** Pai: "also sound at mid-rpm" - a moderate pull at mid revs gives nearly the full surge,
+     *  through the whole Synth at the K-line rate (single, ~5,800 bike rpm at 40 % throttle). */
+    @Test fun surgeAtMidRpm() {
+        fun heCount(tps: Double, hold: Double): Int {
+            val s = Synth(sr).apply { style = Styles.byId("single"); engineSound = false; flutter = true }
+            val sim = EngineSim()
+            val pcm = ArrayList<Double>()
+            val frame = FloatArray(sr / 60)
+            var since = 1.0
+            var maxRpm = 0.0
+            for (f in 0 until 60 * 5) {
+                val t = f / 60.0
+                if (f == 0) sim.start()
+                val th = if (t in 1.0..(1.0 + hold)) tps else 0.0
+                sim.step(1 / 60.0, th)
+                maxRpm = maxOf(maxRpm, sim.rpm)
+                since += 1 / 60.0
+                if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, th, sim.fuelCut) }
+                s.render(frame, frame.size)
+                frame.forEach { pcm += it.toDouble() }
+            }
+            val env = pcm.chunked(192).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }
+            val top = env.max()
+            if (top < 1e-3) return 0
+            val n = (1 until env.size - 1).count { i ->
+                env[i] >= env.subList(maxOf(0, i - 10), minOf(env.size, i + 11)).max() && env[i] > 0.3 * top
+            }
+            println("surge after %.0f %% throttle for %.1f s (up to %.0f bike rpm): %d 'he's".format(tps, hold, maxRpm, n))
+            return n
+        }
+        assertTrue("mid-rpm pull", heCount(40.0, 1.5) >= 9)
+        assertTrue("big pull", heCount(100.0, 1.5) >= 11)
+        assertEquals("quick blip", 0, heCount(40.0, 0.15))
     }
 
     @Test fun switchesOffMeansNoSound() {

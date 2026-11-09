@@ -97,11 +97,15 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             bovBand.set(hz, 25.0, sr)                       // same sharpness, only the pitch moves
             bovLevel = kotlin.math.sqrt(6500.0 / hz)        // a higher band holds more noise: same loudness
         }
-        // surge needs real boost (a proper pull, not a blip); more boost = more, louder "tu"s
-        if (flutter && p > 0.4) {
-            surgeSize = p
-            fStart = 600.0 + 450.0 * p                          // ~1050 Hz after a big pull
-            surgeTotal = (4 + 10 * p).toInt()                   // Pai: "longer a bit": ~1.3 s after a big pull
+        // surge needs some boost (a pull, not a quick blip). Pai doesn't rev the real bike that
+        // high, so a moderate pull at mid revs (boost > 0.25) is enough, and it then sounds
+        // nearly like the full surge: the size goes by 0.6 + 0.4 x boost, so after a big pull
+        // (boost ~0.95) it's the approved sound unchanged, at mid revs a little shorter / lower
+        if (flutter && p > 0.25) {
+            val big = 0.6 + 0.4 * p
+            surgeSize = big
+            fStart = 600.0 + 450.0 * big                        // ~1040 Hz after a big pull
+            surgeTotal = (4 + 10 * big).toInt()                 // Pai: "longer a bit": ~1.3 s after a big pull
             surgeIdx = 0
             startTu()
         }
@@ -119,8 +123,11 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // boost builds quickly with throttle (more with turbo speed), leaks away slowly when
         // it's shut. (It used to need high revs and a long pull, so only the limiter got a
         // blow-off.)
-        val pTarget = if (load > 0.2) load * (0.4 + 0.6 * speed) else 0.0
-        pressure += (pTarget - pressure) / ((if (pTarget > pressure) 0.15 else 1.5) * sr)
+        // Boost follows how hard the turbo spins once you're on the throttle (half open or more
+        // counts as fully on), so a moderate pull at mid revs builds real boost (Pai rides at
+        // mid rpm). It builds over ~0.3 s, so a quick blip doesn't make a surge.
+        val pTarget = if (load > 0.2) (0.5 + 0.5 * speed) * minOf(1.0, load / 0.5) else 0.0
+        pressure += (pTarget - pressure) / ((if (pTarget > pressure) 0.3 else 1.5) * sr)
 
         var out = 0.0
 

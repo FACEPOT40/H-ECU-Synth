@@ -173,6 +173,16 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   1.27 s, gaps 76-128 ms. Voice, glide, depth unchanged. **Confirmed by Pai 9 Nov: "the last
   one is correct and what I want".** Keep this sound; tune only on request. It is the "Turbo
   flutter" switch on desktop and phone (off by default).
+  Mid-rpm (9 Nov, Pai: "also sound at mid-rpm, I don't wanna rev it up that high on the real
+  bike"): boost now follows turbo speed once the throttle is ~half open or more:
+  pressure target (0.5 + 0.5 x speed) x min(1, throttle / 0.5) (was throttle x (0.4 + 0.6 x
+  speed)), building over ~0.3 s (was 0.15) so a quick blip doesn't surge. Surge triggers at
+  boost > 0.25 (was 0.4) and its size / count / pitch use 0.6 + 0.4 x boost, so a big pull is
+  the approved sound unchanged (13 "he"s) and a mid-rpm pull nearly the same. Measured via
+  Synth at K-line rate (single): 40 % throttle for 1.5 s (~5,800 rpm) -> 12 "he"s; flat out ->
+  13; a 0.15 s blip -> none. `TurboTest.surgeAtMidRpm`; demo
+  `single_turbo_only_flutter_midrpm.wav`. The blow-off shares this boost: still fires on every
+  let-off, a bit smaller after very short revs.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
