@@ -223,6 +223,21 @@ class TurboTest {
         assertEquals("quick blip", 0, heCount(40.0, 0.15))
     }
 
+    /** Pai: the surge kept playing after he got back on the throttle. Reopening it must stop
+     *  the surge within ~60 ms; while the throttle stays shut it plays on. */
+    @Test fun surgeStopsWhenBackOnTheThrottle() {
+        val t = turbo()
+        t.run(1.5, 1.0, 0.8, false)
+        t.snap(blowOff = false, flutter = true)
+        val shut = t.run(0.25, 0.0, 0.8, false)                 // surging
+        val back = DoubleArray((0.4 * sr).toInt()) { t.next(0.0, 0.8, true, false, throttleNow = 0.6) }
+        val during = rms(shut.copyOfRange((0.1 * sr).toInt(), shut.size))
+        val after = rms(back.copyOfRange((0.06 * sr).toInt(), back.size))
+        println("surge: rms %.3f while shut, %.5f from 60 ms after reopening".format(during, after))
+        assertTrue("surge should play while shut", during > 0.01)
+        assertTrue("surge should stop when reopened", after < during * 0.01)
+    }
+
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)

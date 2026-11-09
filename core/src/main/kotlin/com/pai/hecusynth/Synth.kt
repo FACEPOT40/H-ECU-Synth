@@ -349,7 +349,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             pre *= engineMix
 
             turboFx.blowOffVolume = blowOffVolume
-            pre += turboFx.next(load, spread, running, turbo || st.turbo)
+            pre += turboFx.next(load, spread, running, turbo || st.turbo, targetLoad)
 
             pre += backfire.fx * 0.9                 // pops and bangs, after the engine's rasp
 

@@ -247,7 +247,12 @@ Debug APK copied to `dist/` (gitignored).
   fake ECU (only wake / init / 0x17 sent, reconnects after silence).
 - **Pai 9 Nov: "It connected"** on the real bike (first try). "Engine sound" moved to the top
   of the switch list with a hint ("Off = mute the engine..."): Pai couldn't find a "mute".
-- Readings/s and the sound on the bike: not reported yet. (Was:) NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
+- **Pai 9 Nov on the bike: "The feature works flawlessly"**, but the turbo flutter kept playing
+  after he got back on the throttle. Now `Turbo.next(..., throttleNow)` gets the raw latest
+  throttle (`Synth.targetLoad`, not the 30 ms-smoothed load, so the snap itself doesn't kill
+  it): above 20 % the surge fades out in ~30 ms (`surgeFade`), whistle chop released too.
+  `TurboTest.surgeStopsWhenBackOnTheThrottle` (0.373 -> 0.00005 rms within 60 ms).
+- Readings/s on the bike: not reported yet. (Was:) NOT yet run on the phone or the bike. Expected rate: well over the logger's ~17/s (one table
   instead of three); check the "readings/s" on the bike.
 
 ## Status

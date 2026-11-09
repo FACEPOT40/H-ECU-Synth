@@ -67,6 +67,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var surgeLen = 0.1          // this "tu"'s length
     private var surgeSize = 0.0         // boost at the let-off
     private var tuAmp = 0.0
+    private var surgeFade = 1.0         // drops to 0 in ~30 ms when the throttle opens again
+    private val surgeFadeStep = kotlin.math.exp(-1.0 / (0.01 * sr))
     private val surgeBody = Svf()       // the "tu": air ~300-1000 Hz (wide, no ringing note)
     private val surgeEdge = Svf()       // the "st": a brighter edge at each "tu"'s start
     private var fStart = 1000.0         // the voice's starting pitch (higher after more boost)
@@ -107,16 +109,19 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             fStart = 600.0 + 450.0 * big                        // ~1040 Hz after a big pull
             surgeTotal = (4 + 10 * big).toInt()                 // Pai: "longer a bit": ~1.3 s after a big pull
             surgeIdx = 0
+            surgeFade = 1.0
             startTu()
         }
         pressure = 0.0
     }
 
     /**
-     * One sample. [load] 0..1 throttle, [revs] 0..1 of the style's rev range, [whistle] = the
-     * whistle switch. Returns the sound to add after the engine's saturation.
+     * One sample. [load] 0..1 throttle (smoothed), [revs] 0..1 of the style's rev range,
+     * [whistle] = the whistle switch, [throttleNow] = the latest throttle reading, unsmoothed:
+     * back on the throttle stops a surge at once (Pai: it kept playing while he rode on).
+     * Returns the sound to add after the engine's saturation.
      */
-    fun next(load: Double, revs: Double, running: Boolean, whistle: Boolean): Double {
+    fun next(load: Double, revs: Double, running: Boolean, whistle: Boolean, throttleNow: Double = load): Double {
         // spool: up with throttle and revs (~0.6 s), down when let go (~0.45 s: clip ~7.7 -> 2.6 kHz in ~1.2 s)
         val target = if (running) (0.12 + 0.88 * ((revs - 0.1) / 0.6).coerceIn(0.0, 1.0)) * (0.1 + 0.9 * load) else 0.0
         speed += (target - speed) / ((if (target > speed) 0.6 else 0.45) * sr)
@@ -134,6 +139,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // surge: each "tu" swells (40 %), holds briefly, falls; deep gap (~0.08) between; the
         // whistle (if on) is chopped with it
         var gate = 1.0
+        if (surgeTotal > 0 && throttleNow > 0.2) surgeFade *= surgeFadeStep   // back on the throttle: fade out
+        if (surgeTotal > 0 && surgeFade < 0.001) surgeTotal = 0
         if (surgeTotal > 0) {
             val ph = surgeT / surgeLen
             val env = when {
@@ -157,8 +164,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             surgeEdge.process(nz)
             val st = env * exp(-ph * 4)                                       // edge mostly at the start
             val breath = surgeBody.band * BREATH + surgeEdge.band * 0.25 * st
-            out += (voice * VOICE + breath) * (0.12 + 0.88 * env) * ripple * tuAmp * SURGE
-            gate = 0.25 + 0.75 * env
+            out += (voice * VOICE + breath) * (0.12 + 0.88 * env) * ripple * tuAmp * SURGE * surgeFade
+            gate = 1 - (0.75 - 0.75 * env) * surgeFade
             surgeT += 1 / sr
             if (surgeT >= surgeLen) {
                 surgeIdx++
