@@ -189,6 +189,22 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
   USAGE_MEDIA (so it goes to a Bluetooth headset).
+- Phone UI redesign (9 Nov, Pai: portrait on the handlebar; engine styles as a dropdown, no new
+  presets; auto-connect yes; "do as you say"): `MainActivity` rebuilt. Always visible: top bar
+  ("H-ECU Synth", connection chip: Simulator / Bike / Bike connecting (amber) / Bike N/s
+  (green); tap = switch source or show status; ⋮ menu), "Engine: label · name ▾" dropdown
+  (single-choice dialog), rev meter (200 dp on Ride, 130 dp otherwise), info line, tabs
+  Ride | Sound | Tune (pref `tab`), tab content scrolling on the left with the throttle (96 dp)
+  on the right, one big bottom button (Connect / Disconnect, Start / Stop engine).
+  Ride: volume + quick on/off chips (Engine, Turbo, Blow-off, Flutter, Pops, Bangs).
+  Sound: cards Engine (sound, cam), Turbo (whistle, blow-off + pitch + volume, flutter),
+  Exhaust (pops, bangs), Simulator (bike data rate). Tune: grouped cards (Character, Pipe and
+  tone, Idle, Cylinders, Revs and limiter, Other), Copy settings, Reset style.
+  ⋮: Switch to Simulator / Bike, Auto-connect (pref `auto_connect`, default on), Bike rev range,
+  About. Auto-connect: USB_DEVICE_ATTACHED (onCreate / onNewIntent, singleTask) and on switching
+  to Bike with the cable already in. `showSource` only recolors on a state change (it runs
+  every frame in Bike mode). `Ui.kt`: `uiCard`, `TextView.chip`, `Look.GREEN`.
+  Built, tests pass; NOT yet seen on a phone.
 - `MainActivity.kt`: simulator screen (style buttons, rev meter, Start/Stop engine, volume,
   cam crossover switch + rpm, exhaust pops, "Bike data rate (17/s)"), throttle on the right.
   Settings in SharedPreferences "synth". Audio runs only while the screen is open.
