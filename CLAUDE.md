@@ -121,7 +121,17 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   new each cycle) at the same 38 -> 12 /s rate, linear fade by remaining boost; whistle wobbles
   with it. Measured: depth 0.30, 4-7 kHz 30-32 %, high vs low +4 dB (engine fills the low);
   10-16 kHz 21 % (clip 4-13 %, a bit bright). Lesson again: repeated short hits read as a
-  struck tube; continuous sound with a gentle wobble doesn't. Flutter v2 not yet heard by Pai.
+  struck tube; continuous sound with a gentle wobble doesn't.
+  Pai: v2 "is actually flutter sound but not aggressive enough"; sent `3turbo_flutter_style.wav`
+  (use only 0-25 s; after that an electric turbo he doesn't want). Its flutter (2.5-3.3,
+  19.1-20.5, 22.2-23.8 s): low-mid chuffs 300-1000 Hz up to 53 %, almost nothing above 4 kHz,
+  "tu"s ~30 ms apart and irregular (spread 17-27 ms), dips to ~0.70 of the peak. v3 flutter:
+  per "tu" a fast swell (20 %) then a sag, depth 0.45-0.75, rate x 0.5-1.5 random per "tu",
+  `chuffBand` Svf 550 Hz Q 0.8 (x 3.5) under less hiss (5 kHz band x 0.35), length 0.8-1.9 s,
+  `FLUTTER` 1.0, whistle chopped harder. Measured: 300-1000 Hz 38-40 %, > 4 kHz 15-18 %,
+  spacing 32 ms (spread 11-17), dips 0.56-0.80; on the I4 demo ~+9 dB over coasting (v2 +3.5).
+  `TurboTest.flutterChuffsFastThenSlower` now measures median "tu" gaps (35 -> 50 ms), since
+  the rhythm is irregular on purpose. Flutter v3 not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

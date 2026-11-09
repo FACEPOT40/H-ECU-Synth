@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Turbo whistle, turbo flutter and blow-off valve, each switched on its own (Pai, 9 Nov: "for
@@ -37,7 +38,9 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var flutterLen = 0.0        // 0 = none
     private var flutterSize = 0.0
     private var flutPh = 0.0
-    private var flutDepth = 0.5         // this wobble's depth (a little different each time)
+    private var flutDepth = 0.5         // this "tu"'s depth (different each time)
+    private var flutRate = 1.0          // this "tu"'s speed (irregular rhythm)
+    private val chuffBand = Svf().apply { set(550.0, 0.8, sr) }  // the "tu" body: ~300-1000 Hz
     private var airLp = 0.0
     private var lowLp = 0.0
     private val airBand = Svf().apply { set(5000.0, 0.6, sr) }   // the rush: centred ~5 kHz
@@ -60,7 +63,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         if (flutter) {
             flutterT = 0.0
             flutterSize = if (blowOff) p * 0.4 else p        // after a blow-off, only a little
-            flutterLen = (if (blowOff) 0.35 else 0.6 + 0.9 * p) * (0.85 + 0.3 * rnd())
+            flutterLen = (if (blowOff) 0.4 else 0.8 + 1.1 * p) * (0.85 + 0.3 * rnd())
         }
         if (blowOff || flutter) pressure = 0.0
     }
@@ -79,28 +82,35 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
 
         var out = 0.0
 
-        // flutter: rushing air (high and low) wobbling at ~38 a second, slowing quickly at first
-        // and tailing off toward 12, fading out as the boost runs out
+        // flutter: rushing air chopped into "tu"s, ~38 a second slowing toward 12, fading out as
+        // the boost runs out. Aggressive (2nd clip): each "tu" swells fast then sags, the dips go
+        // deep (to ~30-75 % of the peak), the rhythm is irregular (+-35 %), and a low-mid
+        // 300-1000 Hz chuff body sits under the hiss. The air never stops between the "tu"s:
+        // separate hits sounded like a PVC-pipe instrument.
         var gate = 1.0
         if (flutterLen > 0) {
             val prog = flutterT / flutterLen
             if (prog >= 1) {
                 flutterLen = 0.0
             } else {
-                flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * (0.9 + 0.2 * rnd()) / sr
+                flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * flutRate / sr
                 if (flutPh >= 1) {
                     flutPh -= 1.0
-                    flutDepth = 0.35 + 0.3 * rnd()
+                    flutDepth = 0.45 + 0.3 * rnd()
+                    flutRate = 0.5 + 1.0 * rnd()
                 }
-                val wob = 1 + flutDepth * sin(2 * PI * flutPh)           // gentle, smooth wobble
+                // swell fast (first 20 %), then sag: between 1 - depth and 1 + depth
+                val shape = if (flutPh < 0.2) flutPh / 0.2 else (1 - (flutPh - 0.2) / 0.8).let { it * sqrt(it) }
+                val wob = 1 - flutDepth + 2 * flutDepth * shape
                 val fade = flutterSize * (1 - prog) * minOf(1.0, flutterT / 0.01)
                 val nz = rnd() * 2 - 1
                 airBand.process(nz)
                 airLp += (nz - airLp) * 0.15                            // hiss above ~1 kHz ...
                 lowLp += (nz - lowLp) * 0.05                            // ... and low air
-                val air = airBand.band * 1.2 + (nz - airLp) * 0.2 + lowLp * 3.0
+                chuffBand.process(nz)
+                val air = airBand.band * 0.35 + (nz - airLp) * 0.05 + lowLp * 3.0 + chuffBand.band * 3.5
                 out += air * wob * fade * FLUTTER
-                gate = 1 - 0.5 * (1 - prog) + 0.5 * (1 - prog) * (wob - 1 + flutDepth) / (2 * flutDepth)
+                gate = 1 - 0.6 * (1 - prog) + 0.6 * (1 - prog) * shape
                 flutterT += 1 / sr
             }
         }
@@ -132,7 +142,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     companion object {
         // levels next to the engine (calibrated with TurboTest / the demo WAVs)
         const val WHISTLE = 0.35
-        const val FLUTTER = 0.5
+        const val FLUTTER = 1.0
         const val BLOW_OFF = 2.4
     }
 }

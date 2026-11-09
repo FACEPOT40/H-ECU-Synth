@@ -70,21 +70,22 @@ class TurboTest {
         t.run(1.5, 1.0, 0.8, false)
         t.snap(blowOff = false, flutter = true)
         val x = t.run(2.0, 0.0, 0.8, false)
-        // loudness 1,000 times a second, then its strongest repeat rate early and late
-        val env = x.toList().chunked(48).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }
-        fun rate(a: Int, b: Int): Double {
-            val e = env.subList(a, b); val m = e.average()
-            return generateSequence(5.0) { it + 0.5 }.takeWhile { it <= 80 }.maxBy { f ->
-                var re = 0.0; var im = 0.0
-                e.forEachIndexed { i, v -> re += (v - m) * cos(2 * PI * f * i / 1000); im += (v - m) * sin(2 * PI * f * i / 1000) }
-                re * re + im * im
-            }
+        // loudness every 5 ms (smoothed), its peaks = the "tu"s; the rhythm is irregular on
+        // purpose, so compare the typical (median) gap between them early and late
+        var lp = 0.0
+        val hp = x.map { v -> lp += (v - lp) * 0.04; v - lp }      // above ~300 Hz, like the clip check
+        val raw = hp.chunked(240).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }
+        val env = raw.indices.map { i -> (raw[maxOf(0, i - 1)] + raw[i] + raw[minOf(raw.size - 1, i + 1)]) / 3 }
+        fun gapMs(a: Int, b: Int): Double {
+            val top = env.subList(a, b).max()
+            val peaks = (maxOf(a, 1) until b).filter { env[it] > env[it - 1] && env[it] >= env[it + 1] && env[it] > 0.35 * top }
+            return peaks.zipWithNext { p, q -> (q - p) * 5.0 }.sorted().let { it[it.size / 2] }
         }
-        val early = rate(0, 200)
-        val late = rate(700, 950)
-        println("flutter: %.1f chuffs/s early, %.1f later (clip ~35-40 -> ~12)".format(early, late))
-        assertTrue("early $early", early in 28.0..45.0)
-        assertTrue("late $late", late < early - 8)
+        val early = gapMs(0, 120)                      // 0-0.6 s
+        val late = gapMs(120, 280)                     // 0.6-1.4 s
+        println("flutter: 'tu's %.0f ms apart early (%.0f/s), %.0f ms later (clips: ~25-30 ms, slowing)".format(early, 1000 / early, late))
+        assertTrue("early $early ms", early in 20.0..40.0)
+        assertTrue("late $late ms", late > early + 8)
     }
 
     @Test fun switchesOffMeansNoSound() {
