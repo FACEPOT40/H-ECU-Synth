@@ -47,10 +47,11 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     var blowOffSound = BlowOffSound.WHISTLE
     private var bovT = -1.0             // seconds into the blow-off, < 0 = none
     private var bovKind = BlowOffSound.WHISTLE
-    // the whistle is AIR squeezed into narrow bands (pitched hiss), not pure tones: pure tones
-    // that swell and fade sounded like a bell (Pai)
-    private val wNote1 = Svf().apply { set(6360.0, 120.0, sr) }  // main note, ~50 Hz wide
-    private val wNote2 = Svf().apply { set(9890.0, 80.0, sr) }   // second note
+    // NO sharp notes: pure tones (and even very narrow bands of hiss, Q 120) sounded like a
+    // bell (Pai). Same width as the HISS blow-off Pai likes (Q 25), the brighter / higher
+    // character comes from much more airy hiss above it
+    private val wNote1 = Svf().apply { set(6360.0, 25.0, sr) }   // main "tsss"
+    private val wNote2 = Svf().apply { set(9890.0, 20.0, sr) }   // higher "tsss"
     private val wAir = Svf().apply { set(8500.0, 0.6, sr) }     // airy hiss ~5-13 kHz
     private val wLowAir = Svf().apply { set(4800.0, 2.0, sr) }
     private var bovSize = 0.0
@@ -113,8 +114,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             val nz = rnd() * 2 - 1
             wNote1.process(nz)
             wNote2.process(nz)
-            // (this filter boosts its centre by its sharpness Q, so the notes are scaled down)
-            val tone = wNote1.band * 0.2 + wNote2.band * 0.3 * 0.13
+            // (this filter boosts its centre by its sharpness Q, so the bands are scaled down)
+            val tone = wNote1.band * W_NOTE + wNote2.band * W_NOTE * 0.35
             wAir.process(nz)
             wLowAir.process(nz)
             val air = wAir.band * W_AIR + wLowAir.band * W_AIR * 0.3
@@ -142,8 +143,9 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         const val WHISTLE = 0.35
         const val BLOW_OFF = 2.4
         // whistle blow-off: note and air (calibrated with TurboTest against the SQV clip)
-        const val W_TONE = 0.3
-        const val W_AIR = 0.22
-        const val W_GAIN = 6.8          // as loud as the hiss blow-off
+        const val W_TONE = 1.0
+        const val W_NOTE = 0.25
+        const val W_AIR = 0.32
+        const val W_GAIN = 3.2          // as loud as the hiss blow-off
     }
 }

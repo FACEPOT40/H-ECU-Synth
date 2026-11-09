@@ -135,8 +135,15 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   Q 120, 9890 Hz Q 80; note this Svf's band output peaks at x Q, hence x0.2 / x0.039), plus
   the same air. Measured vs clip: noisiness 0.07 (clip 0.10, bell version 0.05), half-power
   6342-6389 Hz (6347-6380), shares 86 / 5 / 4 % (79 / 7 / 4), centre 6770 (6754), choppy
-  0.12-1.0 like the clip, level = HISS. Lesson: anything pitched must be pitched NOISE, never
-  pure tones (bell) or struck resonators (PVC). Not yet heard by Pai.
+  0.12-1.0 like the clip, level = HISS.
+  Pai: "It's not air hiss. It's still a bell sound." Even a Q 120 band of noise reads as a
+  ringing note. Now WHISTLE uses the same width as HISS: `Svf` 6360 Hz Q 25 + 9890 Hz Q 20
+  (x0.35), W_NOTE 0.25, more broadband air (W_AIR 0.32), W_GAIN 3.2; the "higher" character
+  comes from the air above, not a sharp note. Measured: noisiness 0.10 (= clip), main band
+  half-power 6242-6462 Hz, shares 75 / 8 / 9 % (clip 79 / 7 / 4), rise 100 ms, ~420 ms, level
+  = HISS. Test `whistleBlowOffIsAnAiryTsss` also checks no peak > 30x its neighbours.
+  Lesson: keep pitched parts at Q <= ~25 (the HISS width Pai approved); sharper = bell.
+  Not yet heard by Pai.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the
