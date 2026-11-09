@@ -51,7 +51,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             engineSound = prefs.getBoolean("engine_sound", true)
             turbo = prefs.getBoolean("turbo", false)
             blowOff = prefs.getBoolean("blow_off", false)
-            blowOffPitch = prefs.getInt("blow_off_pitch", 6500).toDouble()
+            blowOffPitch = prefs.getInt("blow_off_pitch", 8000).toDouble()
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -140,7 +140,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         val bovPitchLabel = uiText(12f, Look.GREY)
         fun showBovPitch() {
             val hz = synth.blowOffPitch.toInt()
-            bovPitchLabel.text = "Blow-off pitch %.1f kHz%s".format(hz / 1000.0, if (hz == 6500) " (original)" else "")
+            bovPitchLabel.text = "Blow-off pitch %.1f kHz%s".format(hz / 1000.0, when (hz) { 8000 -> " (default)"; 6500 -> " (original)"; else -> "" })
         }
         showBovPitch()
         controls.addView(bovPitchLabel)

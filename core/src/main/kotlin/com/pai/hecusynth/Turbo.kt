@@ -39,8 +39,8 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private val bovBand = Svf().apply { set(6500.0, 25.0, sr) }
     private var bovLevel = 1.0
 
-    /** Blow-off pitch in Hz (the original, approved sound = 6500). Takes effect at the next
-     *  blow-off. */
+    /** Blow-off pitch in Hz: 6500 = the original sound; Pai picked 8000 (the app default, set
+     *  by [Synth]). Takes effect at the next blow-off. */
     var blowOffPitch = 6500.0
 
     /** Throttle let off: with [blowOff] on, the valve lets the boost out. Every let-off after

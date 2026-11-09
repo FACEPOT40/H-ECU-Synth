@@ -126,7 +126,11 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   pitch" (50-110 x 100 Hz) and phone slider (pref `blow_off_pitch`). Demos `lone_bov`
   (6.5 kHz), `lone_bov_8k`, `lone_bov_9k5`, `lone_bov_11k`. `TurboTest.blowOffPitchMovesTheSameSound`.
   Lessons: don't redesign an approved sound to chase a reference; move one parameter of it.
-  Pitched parts must stay wide (Q <= ~25) or they ring like a bell. Pai's pick not known yet.
+  Pitched parts must stay wide (Q <= ~25) or they ring like a bell.
+  **Pai 9 Nov: `lone_bov_8k` "is the correct one. Exactly what I want."** -> default pitch
+  8000 Hz (`Synth.blowOffPitch`, desktop slider 80, phone pref default 8000; labels show
+  "(default)" at 8.0 and "(original)" at 6.5). `Turbo.blowOffPitch` alone stays 6500 for the
+  tests that measure the original.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the

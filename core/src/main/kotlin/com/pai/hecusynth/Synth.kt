@@ -43,7 +43,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var engineSound = true
     @Volatile var turbo = false             // turbo whistle
     @Volatile var blowOff = false           // blow-off valve when the throttle snaps shut
-    @Volatile var blowOffPitch = 6500.0     // Hz; 6500 = the original blow-off
+    @Volatile var blowOffPitch = 8000.0     // Hz; Pai's pick (9 Nov); 6500 = the original
 
     // ---- read back for the screen
     @Volatile var camHigh = false
