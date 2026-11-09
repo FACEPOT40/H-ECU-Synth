@@ -170,7 +170,9 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   680-980 Hz; rhythm unchanged; ~+7-9 dB over coasting.
   **Pai 9 Nov on `lone_surge.wav`: "This is it", just "faster a bit and longer a bit".** So
   rate 12.5 -> 7.5 /s (was 10 -> 6) and 4 + 10 x pressure "he"s (was 3 + 6): 13 "he"s over
-  1.27 s, gaps 76-128 ms. Voice, glide, depth unchanged. Keep this sound; tune only on request.
+  1.27 s, gaps 76-128 ms. Voice, glide, depth unchanged. **Confirmed by Pai 9 Nov: "the last
+  one is correct and what I want".** Keep this sound; tune only on request. It is the "Turbo
+  flutter" switch on desktop and phone (off by default).
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
