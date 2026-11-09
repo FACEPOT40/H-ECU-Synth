@@ -112,7 +112,16 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   pitch 3050 -> 7600 -> 3400 Hz; blow-off 91 % at 5.5-7.5 kHz; flutter 32 -> 16 /s; in the I4
   demo whistle +8 dB in its range, blow-off ~+3 dB over the engine, flutter +4-5 dB < 1 kHz.
   `TurboTest`; demo WAVs `lone_whistle/bov/flutter`, `i4_turbo(_bov/_flutter)`,
-  `single_turbo*`. The phone's control column now scrolls. Not yet heard by Pai.
+  `single_turbo*`. The phone's control column now scrolls.
+  Pai 9 Nov: whistle and blow-off "good"; flutter (separate low thumps < 600 Hz, chop depth
+  1-1.5) "sounds like PVC instrument again". Clip flutter above the engine = a steady rush of
+  air whose loudness WOBBLES gently (depth 0.23-0.28), 4-7 kHz the biggest share (27-35 %),
+  high and low air about equal. v2 flutter: noise through `Svf` band 5 kHz Q 0.6 + a little
+  high-passed hiss + low air (one-pole 0.05 x 3), times a smooth sine wobble (depth 0.35-0.65,
+  new each cycle) at the same 38 -> 12 /s rate, linear fade by remaining boost; whistle wobbles
+  with it. Measured: depth 0.30, 4-7 kHz 30-32 %, high vs low +4 dB (engine fills the low);
+  10-16 kHz 21 % (clip 4-13 %, a bit bright). Lesson again: repeated short hits read as a
+  struck tube; continuous sound with a gentle wobble doesn't. Flutter v2 not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

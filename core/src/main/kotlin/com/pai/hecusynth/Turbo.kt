@@ -12,9 +12,11 @@ import kotlin.math.sin
  *  - Whistle: a clean tone that climbs from ~3 to ~7.7 kHz in ~0.8 s as the turbo spools up,
  *    and slides back to ~2.6 kHz over ~1.2 s as it spins down. Here: pitch = 2.5 + 5.5 kHz x
  *    turbo speed.
- *  - Flutter (compressor surge when the throttle shuts with boost and no blow-off): choppy air
- *    "stu-tu-tu" chuffs, mostly under 1 kHz with a big swing, starting at ~35-40 a second and
- *    slowing to ~12 as the pressure runs out; the whistle is chopped with them.
+ *  - Flutter (compressor surge when the throttle shuts with boost and no blow-off): a steady
+ *    rush of air whose loudness WOBBLES gently (swing ~0.25 of its level), mostly 2-10 kHz with
+ *    the most at 4-7 kHz, high and low air about equally loud; the wobble starts at ~35-40 a
+ *    second and slows to ~12 as the pressure runs out; the whistle wobbles with it.
+ *    (A first version made separate low thumps per "tu": Pai, "sounds like a PVC instrument".)
  *  - Blow-off: a narrow ~6.5 kHz "tsss" (80-90 % of it in a ~150 Hz wide band), up in 15-20 ms,
  *    then chattering as it fades over ~150 ms.
  * Plain Kotlin, driven by [Synth].
@@ -34,10 +36,11 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var flutterT = 0.0          // seconds into the flutter
     private var flutterLen = 0.0        // 0 = none
     private var flutterSize = 0.0
-    private var chuffPh = 0.0
-    private var chuffEnv = 0.0
-    private var chuffLp = 0.0
-    private val chuffDecay = exp(-1.0 / (0.007 * sr))
+    private var flutPh = 0.0
+    private var flutDepth = 0.5         // this wobble's depth (a little different each time)
+    private var airLp = 0.0
+    private var lowLp = 0.0
+    private val airBand = Svf().apply { set(5000.0, 0.6, sr) }   // the rush: centred ~5 kHz
 
     // blow-off
     private var bovT = -1.0             // seconds into the blow-off, < 0 = none
@@ -76,28 +79,30 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
 
         var out = 0.0
 
-        // flutter chuffs: ~38 a second, slowing quickly at first, then tailing off toward 12
+        // flutter: rushing air (high and low) wobbling at ~38 a second, slowing quickly at first
+        // and tailing off toward 12, fading out as the boost runs out
         var gate = 1.0
         if (flutterLen > 0) {
             val prog = flutterT / flutterLen
             if (prog >= 1) {
                 flutterLen = 0.0
             } else {
-                chuffPh += (12.0 + 26.0 * exp(-3.0 * prog)) * (0.9 + 0.2 * rnd()) / sr
-                if (chuffPh >= 1) {
-                    chuffPh -= 1.0
-                    chuffEnv = flutterSize * (1 - prog) * (0.7 + 0.3 * rnd())
+                flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * (0.9 + 0.2 * rnd()) / sr
+                if (flutPh >= 1) {
+                    flutPh -= 1.0
+                    flutDepth = 0.35 + 0.3 * rnd()
                 }
+                val wob = 1 + flutDepth * sin(2 * PI * flutPh)           // gentle, smooth wobble
+                val fade = flutterSize * (1 - prog) * minOf(1.0, flutterT / 0.01)
+                val nz = rnd() * 2 - 1
+                airBand.process(nz)
+                airLp += (nz - airLp) * 0.15                            // hiss above ~1 kHz ...
+                lowLp += (nz - lowLp) * 0.05                            // ... and low air
+                val air = airBand.band * 1.2 + (nz - airLp) * 0.2 + lowLp * 3.0
+                out += air * wob * fade * FLUTTER
+                gate = 1 - 0.5 * (1 - prog) + 0.5 * (1 - prog) * (wob - 1 + flutDepth) / (2 * flutDepth)
                 flutterT += 1 / sr
             }
-        }
-        if (chuffEnv > 1e-4) {
-            chuffLp += (rnd() * 2 - 1 - chuffLp) * 0.08    // under ~600 Hz: the "stu"
-            out += chuffEnv * chuffLp * FLUTTER
-            gate = 0.55 + 0.9 * chuffEnv.coerceAtMost(0.5)  // the whistle is chopped with it
-            chuffEnv *= chuffDecay
-        } else if (flutterLen > 0) {
-            gate = 0.55
         }
 
         // whistle
@@ -127,7 +132,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     companion object {
         // levels next to the engine (calibrated with TurboTest / the demo WAVs)
         const val WHISTLE = 0.35
-        const val FLUTTER = 10.0
+        const val FLUTTER = 0.5
         const val BLOW_OFF = 2.4
     }
 }
