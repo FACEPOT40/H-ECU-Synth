@@ -3,63 +3,48 @@ package com.pai.hecusynth
 import kotlin.math.exp
 import kotlin.math.tanh
 
-/** How a pop sounds. Pai picks by ear (desktop + phone). */
-enum class PopSound(val label: String) {
-    /** One of the engine's own exhaust pulses, suddenly huge, raw and distorted. */
-    BARK("Engine bark"),
-    /** A shock wave (sharp push, then pull) with a short distorted noise burst. */
-    CRACK("Sharp crack"),
-}
-
 /**
  * Exhaust pops and backfire bangs.
  *
- * Timing follows a reference clip Pai liked (9 Nov, measured, not copied): BURSTS of 4-9 pops
- * ~28-35 ms apart, the first loudest, each next one softer, then quiet.
+ * Built from measurements of two references Pai sent (9 Nov; measured only, never copied or
+ * shipped): a pops-and-bangs video and a clean "Bang" sound effect.
+ *  - Timing (video): BURSTS of 4-9 pops ~28-35 ms apart, the first loudest, each next softer.
+ *  - Each blast (bang SFX): full level within 0.2 ms; HOLDS flat-out loud (~85 ms for a bang),
+ *    heavily clipped (42 % of the first 80 ms near full scale: dense, raw); then dies fast
+ *    (-11 dB at 120 ms, -28 at 200, -46 at 300); 75-85 % of the energy at 500-2000 Hz, almost
+ *    no bass; a bright 2-4 kHz crack in the first ~5 ms.
+ * So a blast = noise centred on ~1 kHz, driven hard into clipping, under a hold-then-fade
+ * envelope, with a crack at the front. Pops are the same thing, much shorter.
  *
- * The sound has NO pitched parts. Two earlier versions rang each pop on tuned resonators
- * ("pipe notes", long and then short): Pai said they sounded like a PVC-pipe instrument /
- * RimbaTubes, not an engine, even though they measured close to the clip. So now:
- *  - [PopSound.BARK]: a pop is handed to the [Synth] ([takeBark]), which makes the next firing a
- *    huge pulse with lots of combustion noise, and opens its tone filter and adds rasp while it
- *    sounds ([open]): the engine itself barks, through its own pipe and rasp.
- *  - [PopSound.CRACK]: a pop is a shock wave (0.4 ms push, then a pull) plus a 5 ms noise burst,
- *    soft-clipped, made here ([fx]).
- * Both get a short dark "air" tail (noise, not echoes: echoes ring).
+ * Earlier tries Pai rejected by ear: tuned resonators ("PVC instrument", "RimbaTubes"), then
+ * a low thumping engine pulse and a thin 5 ms crack ("sound like a fart").
  */
 class Backfire(private val sr: Double, private val rnd: () -> Double) {
-    var sound = PopSound.BARK
-
     private var left = 0            // pops still to come in this burst
     private var timer = 0
-    private var amp = 0.0           // loudness of the next pop
-    private var big = false         // this burst is a bang
+    private var amp = 0.0           // loudness of the next blast
+    private var big = false         // the next blast is a bang
 
-    private var pending = 0.0       // BARK: a pop waiting for the next firing
-    private var pendingAge = 0
+    private var level = 0.0         // this blast's loudness
+    private var holdLeft = 0        // samples left at full level
+    private var env = 0.0
+    private var release = 0.0
+    private var crack = 0.0
+    private val crackDecay = exp(-1.0 / (0.003 * sr))
+    private val band = Svf().apply { set(750.0, 0.7, sr) }      // ~500-2000 Hz once clipped
+    private val crackBand = Svf().apply { set(3000.0, 1.0, sr) } // the crack: ~2-4 kHz
+    private var lpOut = 0.0
+    private var lpOut2 = 0.0
 
-    private var shockAge = Int.MAX_VALUE
-    private var shockAmp = 0.0
-    private var burstEnv = 0.0
-    private var burstDecay = 0.0
-    private var nLp = 0.0
-    private var nLp2 = 0.0
-    private var tailEnv = 0.0
-    private var tailLp = 0.0
-    private var tailDecay = exp(-1.0 / (0.05 * sr))
-    private val openDecay = exp(-1.0 / (0.025 * sr))
-
-    /** This sample's crack / tail sound, to add after the engine's saturation. */
+    /** This sample's pop / bang, to add after the engine's saturation. */
     var fx = 0.0
-        private set
-    /** 0..~2: how strongly a bark is sounding (the Synth opens its tone filter, adds rasp). */
-    var open = 0.0
         private set
 
     val busy get() = left > 0
 
-    /** Starts a burst of [count] pops, the first [first] loud. [bang] = bigger and longer. A
-     *  burst already running is only replaced by a louder one. */
+    /** Starts a burst of [count] blasts, the first [first] loud. [bang] makes the first one a
+     *  full bang (long hold); its pops follow after it. A burst already running is only
+     *  replaced by a louder one. */
     fun burst(count: Int, first: Double, bang: Boolean = false) {
         if (left > 0 && first <= amp) return
         left = count
@@ -68,65 +53,42 @@ class Backfire(private val sr: Double, private val rnd: () -> Double) {
         big = bang
     }
 
-    /** BARK: the pop due now (0 = none). The Synth calls this at each firing and makes that
-     *  firing a bark of this size. */
-    fun takeBark(): Double {
-        val p = pending
-        pending = 0.0
-        if (p > 0) open = maxOf(open, p)
-        return p
-    }
-
     fun step() {
         if (left > 0 && --timer <= 0) {
-            val a = amp
-            if (sound == PopSound.BARK) {
-                pending = a
-                pendingAge = 0
-                shockAmp = a * 0.25                     // a small crack on the bark's front
-            } else {
-                shockAmp = a
-                burstEnv = a
-            }
-            shockAge = 0
-            burstDecay = exp(-1.0 / ((if (big) 0.010 else 0.005) * sr))
-            tailDecay = exp(-1.0 / ((if (big) 0.14 else 0.05) * sr))
-            tailEnv += a * (if (big) 0.3 else 0.15)
+            val holdS = if (big) 0.085 else 0.006 + 0.012 * minOf(1.0, amp)   // pops: 6-18 ms
+            val tau = if (big) 0.045 else 0.009
+            level = amp
+            env = 1.0
+            holdLeft = (holdS * sr).toInt()
+            release = exp(-1.0 / (tau * sr))
+            crack = amp
             left--
             amp *= 0.7 + 0.12 * rnd()
-            big = false                                 // only the first is the bang
-            timer = ((0.028 + 0.007 * rnd()) * sr).toInt()   // clip: 25-30 ms apart
+            // next one 28-35 ms on (video); after a bang, once the bang has died down
+            timer = (((if (big) holdS + 0.06 else 0.0) + 0.028 + 0.007 * rnd()) * sr).toInt()
+            big = false
         }
-        if (pending > 0 && ++pendingAge > 0.04 * sr) pending = 0.0   // no firing came: drop it
-        open *= openDecay
+        if (env < 1e-4) { fx = 0.0; return }
 
-        var out = 0.0
-        // shock wave: up in 0.4 ms, down to -0.6 by 1.6 ms, back to 0 by 3.6 ms
-        if (shockAge < (0.0036 * sr).toInt()) {
-            val t = shockAge / sr * 1000                // ms
-            val w = when {
-                t < 0.4 -> t / 0.4
-                t < 1.6 -> 1 - 1.6 * (t - 0.4) / 1.2
-                else -> -0.6 * (1 - (t - 1.6) / 2.0)
-            }
-            out += shockAmp * w
-            shockAge++
+        if (holdLeft > 0) holdLeft-- else env *= release
+        val nz = rnd() * 2 - 1
+        band.process(nz)
+        // hard drive into clipping: during the hold it's a dense, near-square roar; as the
+        // envelope falls it comes out of clipping and fades (like the reference)
+        val out = tanh(DRIVE * band.band * env) * level
+        lpOut += (out - lpOut) * 0.3             // clipping adds a harsh top: take it off
+        lpOut2 += (lpOut - lpOut2) * 0.3         // (two steps, above ~2.5 kHz)
+        var o = lpOut2
+        if (crack > 1e-4) {                      // bright 2-4 kHz edge at the very start
+            crackBand.process(nz)                // (after that filter, so it stays bright)
+            o += crack * crackBand.band * 5.0
+            crack *= crackDecay
         }
-        // noise burst, ~150 Hz - 3.5 kHz
-        if (burstEnv > 1e-4) {
-            nLp += (rnd() * 2 - 1 - nLp) * 0.4
-            nLp2 += (nLp - nLp2) * 0.02
-            out += burstEnv * (nLp - nLp2) * 1.6
-            burstEnv *= burstDecay
-        }
-        // soft clip like a real blast hitting the mic (only the loud part distorts)
-        out = tanh(2.5 * out) / 2.5 * 1.6
-        // dark air tail
-        if (tailEnv > 1e-4) {
-            tailLp += (rnd() * 2 - 1 - tailLp) * 0.06
-            out += tailEnv * tailLp
-            tailEnv *= tailDecay
-        }
-        fx = out
+        fx = o
+    }
+
+    companion object {
+        /** How hard the blast is driven into clipping (reference: ~40 % near full scale). */
+        const val DRIVE = 20.0
     }
 }

@@ -27,10 +27,6 @@ import kotlin.math.tanh
  * next over the time between readings instead of jumping (a jump would sound like a zipper).
  */
 class Synth(val sampleRate: Int, seed: Long = 7L) {
-    companion object {
-        /** "Engine bark" pop size next to the engine's own pulses (1.0 = a full-throttle bang). */
-        const val BARK_GAIN = 2.5
-    }
 
     // ---- settings (any thread)
     @Volatile var style: EngineStyle = Styles.ALL[0]
@@ -40,7 +36,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var camRpm = 6500.0          // bike rpm
     @Volatile var crackles = false          // exhaust pops: an extra, off by default
     @Volatile var bangs = false             // backfire bangs: an extra, off by default
-    @Volatile var popSound = PopSound.BARK  // how pops and bangs sound
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -102,8 +97,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var phase = DoubleArray(0)
     private var amp = DoubleArray(0)
     private var barkEnv = DoubleArray(0)
-    private var barkDec = DoubleArray(0)    // per cylinder: a bark's noise lasts longer
-    private var popW = DoubleArray(0)       // per cylinder: a bark's pulse is longer
     private var idleF = 0.0                 // 1 at idle, 0 from ~35 % of the rev range up
 
     // ---- big-cam lope: the idle hunts up and down, bangs come uneven, some go weak
@@ -141,7 +134,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var bov = 0.0
 
     private val barkDecay = exp(-1.0 / (0.0025 * sr))
-    private val popBarkDecay = exp(-1.0 / (0.008 * sr))
+
     private val kickDecay = exp(-1.0 / (0.15 * sr))
     private val bovDecay = exp(-1.0 / (0.35 * sr))
 
@@ -159,8 +152,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         phase = DoubleArray(n) { -1.0 }
         amp = DoubleArray(n)
         barkEnv = DoubleArray(n)
-        barkDec = DoubleArray(n) { barkDecay }
-        popW = DoubleArray(n) { 1.0 }
         crank = 0.0
         pipe.fill(0.0); pipeLp = 0.0
         body.reset(); intake.reset()
@@ -276,12 +267,12 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 val p = phase[c]
                 if (p >= 0) {
                     excite += amp[c] * shape(p)
-                    val np = p + dDeg / (cylWidth[c] * popW[c])
+                    val np = p + dDeg / cylWidth[c]
                     phase[c] = if (np >= 1) -1.0 else np
                 }
                 if (barkEnv[c] > 1e-5) {
                     excite += barkEnv[c] * noise()
-                    barkEnv[c] *= barkDec[c]
+                    barkEnv[c] *= barkDecay
                 }
             }
             if (crank >= 720.0) {
@@ -301,7 +292,6 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 }
                 if (bangs && randFx() < 0.3 / sr) bang()
             }
-            backfire.sound = popSound
             backfire.step()
 
             // 2. exhaust pipe echo (with a little damping in the loop)
@@ -316,8 +306,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             if (coefCount-- <= 0) {
                 coefCount = 16
                 val open = if (cut) 0.3 * load else load
-                val fc = (st.toneHz + st.toneLoadHz * open) * (1 + 0.5 * camMix) + 1.5 * fireHz +
-                    3000 * backfire.open                 // a bark opens the sound up
+                val fc = (st.toneHz + st.toneLoadHz * open) * (1 + 0.5 * camMix) + 1.5 * fireHz
                 body.set(min(fc, 0.42 * sr), st.resonance, sr)
                 intake.set(min(600 + 2.5 * fireHz, 6000.0), 0.8, sr)
             }
@@ -334,7 +323,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             val hiss = nz - hpLp                     // high-passed noise
 
             var pre = (body.low * 0.85 + y * 0.15) * norm + roar
-            val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load) * (1 + min(1.5, backfire.open))   // and gets raw
+            val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load)
             pre = tanh(drv * pre) / tanh(drv)
             if (st.growl > 0) {
                 val cyc = 2 * PI * crank / 720.0
@@ -353,7 +342,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 }
             }
 
-            pre += backfire.fx * 0.9                 // crack / shock + air tail, after the rasp
+            pre += backfire.fx * 0.9                 // pops and bangs, after the engine's rasp
 
             // DC blocker, smooth volume, soft limit (never a hard clip)
             val d = pre - dcX + 0.995 * dcY
@@ -363,7 +352,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         }
     }
 
-    /** A backfire bang: a very loud first pop with a longer tail, then its burst of pops. */
+    /** A backfire bang: one long, flat-out blast, then its burst of pops. */
     private fun bang() = backfire.burst(6 + (randFx() * 4).toInt(), 1.5 + 0.3 * randFx(), bang = true)
 
     private fun fire(c: Int, st: EngineStyle, over: Double, rpmS: Double) {
@@ -380,21 +369,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             a *= 1 + lope * (rand01() * 1.4 - 0.7)
             if (rand01() < 0.18 * lope) a *= 0.2
         }
-        // "Engine bark" pop due: this firing (fuel cut, so unburnt mixture) goes off in the
-        // pipe instead: a huge, longer pulse with lots of combustion noise
-        val pop = if (cut) backfire.takeBark() else 0.0
-        if (pop > 0) {
-            a = pop * BARK_GAIN
-            popW[c] = 1.6
-            barkEnv[c] = pop * 1.0
-            barkDec[c] = popBarkDecay
-        } else {
-            popW[c] = 1.0
-            barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load + lope) * a
-            barkDec[c] = barkDecay
-        }
-        phase[c] = min(over / (cylWidth[c] * popW[c]), 0.99)
+        phase[c] = min(over / cylWidth[c], 0.99)
         amp[c] = a
+        barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load + lope) * a
         // at the limiter, now and then a small pop in a cut (about 6 a second)
         if (crackles && cut && atLimiter && !backfire.busy && randFx() < 6.0 / st.firingHz(rpmS)) {
             backfire.burst(1, 0.3 + 0.2 * randFx())

@@ -48,7 +48,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
             crackles = prefs.getBoolean("crackles", false)   // off unless the rider turns them on
             bangs = prefs.getBoolean("bangs", false)
-            popSound = PopSound.entries.firstOrNull { it.name == prefs.getString("pop_sound", null) } ?: PopSound.BARK
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -122,14 +121,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.bangs = on
             prefs.edit().putBoolean("bangs", on).apply()
         })
-        lateinit var popButton: Button
-        popButton = uiButton("Pop sound: ${synth.popSound.label}") {
-            val all = PopSound.entries
-            synth.popSound = all[(synth.popSound.ordinal + 1) % all.size]
-            prefs.edit().putString("pop_sound", synth.popSound.name).apply()
-            popButton.text = "Pop sound: ${synth.popSound.label}"
-        }
-        controls.addView(popButton)
         controls.addView(switch("Bike data rate (17/s)", bikeRate) { on ->
             bikeRate = on
             prefs.edit().putBoolean("bike_rate", on).apply()

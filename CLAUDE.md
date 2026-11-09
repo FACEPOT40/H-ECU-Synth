@@ -71,14 +71,20 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   flatness and spectrum, but Pai: "still sounds like RimbaTubes". Lesson: struck pitched
   resonators read as a tube instrument whatever the ring time, and the numbers didn't catch it;
   let Pai judge by ear and offer choices.
-  v4 (now, `Backfire.kt`, no pitched parts at all): same burst timing; `PopSound` picked by
-  ear (desktop drop-down "Pop sound", phone button, pref `pop_sound`):
-  BARK (default) = `takeBark()` turns the next fuel-cut firing into a 2.5x pulse, 1.6x longer,
-  with 8 ms combustion noise, while the tone filter opens (+3000 Hz x `open`) and rasp rises
-  (x 1 + open): the engine itself barks; plus a small shock click. CRACK = shock wave (0.4 ms up,
-  -0.6 by 1.6 ms, 0 by 3.6 ms) + 5 ms noise burst 150 Hz-3.5 kHz, soft-clipped. Both: dark noise
-  air tail 50 ms (bang 140 ms). Probe measure: bark +15 dB, mostly < 200 Hz, 20 ms decay; crack
-  +10 dB, broadband; tail flatness 0.06 / 0.20 (v2 "PVC" was 0.010). Not yet heard by Pai.
+  v4 (BARK = next fuel-cut firing as a huge pulse; CRACK = 5 ms shock + noise, with a
+  "Pop sound" selector): Pai, "those sound like a fart" (bark was 67 % under 200 Hz).
+  v5 (now, `Backfire.kt`, one sound, selector removed): built from a clean "Bang - Sound Effect
+  (SFX).mp3" Pai sent (`Downloads`, measured only, never shipped). Reference bang: full level in
+  0.2 ms, flat-out ~85 ms, heavily clipped (42 % of the first 80 ms near full scale, rms/peak
+  ~0.7), then -11 dB @120 ms, -28 @200, -46 @300; 75-85 % of energy 500-2000 Hz, almost no
+  bass; onset broadband with ~28 % at 2-4 kHz; flatness 0.10-0.30. Model: white noise ->
+  `Svf` band 750 Hz Q 0.7 -> tanh(DRIVE 20 x env) -> two one-pole lowpasses (0.3) + a 3 kHz
+  band crack (x5, 3 ms) at the front. Envelope: hold 85 ms (bang) / 6-18 ms (pops, by
+  loudness), then tau 45 / 9 ms. Burst timing unchanged (pops 28-35 ms apart, x0.7-0.82); after
+  a bang its pops start ~60 ms after the hold. `FxTest.loneBangWav` writes `lone_bang.wav` /
+  `lone_pop.wav` (no engine) to compare. Measured: envelope -7/-13/-29/-49 dB at 80/120/200/
+  300 ms; 500-2000 Hz 72-82 %; flatness 0.09-0.13; rms/peak 0.59; onset 2-4k 10 %, 4-16k 15 %
+  (a bit brighter than the reference's top). Not yet heard by Pai.
   Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
