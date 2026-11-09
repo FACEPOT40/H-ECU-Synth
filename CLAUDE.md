@@ -115,6 +115,21 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   (`tpsPeak` / `peakAge` in Synth) is 30+ points higher, so slow releases count too.
   `TurboTest.blowOffOnEveryLetOff` (short rev, quick and eased-off release, via Synth at
   17/s). Backfire bangs keep their own snap check (> 40-point drop) unchanged.
+- Blow-off sound choice (9 Nov, Pai: "tune a blow off valve sound at higher pitch as this
+  sample", an SQV-type valve on a 1NZ-FE turbo; measured only, never shipped):
+  `BlowOffSound` WHISTLE (new default) / HISS (the earlier, approved one); `Synth.blowOffSound`,
+  desktop drop-down next to "Blow-off valve", phone button "Blow-off sound: ..." (pref
+  `blow_off_sound`). No brand names in the app. The clip's main note is about as high as ours
+  (6360 Hz) but a SHARP whistle (half-power ~33 Hz wide, ours was a ~120 Hz band of hiss), plus
+  a second note ~9.9 kHz and airy hiss to ~13 kHz, building over ~105 ms with hard chatter
+  (0.3 <-> 1.0), ~400 ms with a soft tail: that's the "higher pitch". WHISTLE = sines 6360 +
+  9890 Hz (x0.3, tiny shared wobble) x W_TONE 0.3 + air (Svf 8.5 kHz Q 0.6 + 4.8 kHz Q 2 x0.3) x
+  W_AIR 0.22; envelope up 60 ms, hold to 160 ms, to a 0.2 tail, gone by ~0.5 s; chatter
+  random walk 0.03, depth 9 (clamped 0.25-1.2) while loud; W_GAIN 6.8 = as loud as HISS.
+  Measured vs clip: 6349 Hz half-power 6344-6376, 9900 Hz, centre 6825 (6754), shares
+  5.5-7.5 / 7.5-10 / 10-13 kHz 85 / 9 / 2 % (79 / 7 / 4), rise 110 ms, ~420 ms.
+  `TurboTest.whistleBlowOffIsASharpTsuuu`; demo `lone_bov_whistle.wav`. Lone demo WAVs are now
+  scaled to a 0.9 peak (the old x4 clipped, the first lone_bov too). Not yet heard by Pai.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the

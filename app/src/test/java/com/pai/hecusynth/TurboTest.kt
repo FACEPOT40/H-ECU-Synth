@@ -50,7 +50,7 @@ class TurboTest {
     }
 
     @Test fun blowOffIsAShortHighTsss() {
-        val t = turbo()
+        val t = turbo().apply { blowOffSound = BlowOffSound.HISS }
         t.run(1.5, 1.0, 0.8, false)                            // build boost, whistle off
         assertTrue("boost ${t.pressure}", t.pressure > 0.6)
         t.snap(blowOff = true)
@@ -100,6 +100,32 @@ class TurboTest {
             println("blow-off after a short rev, %s release: %.0fx more 6-7 kHz than with it off".format(name, on / off))
             assertTrue("$name release: no blow-off ($on vs $off)", on > off * 20)
         }
+    }
+
+    /** Whistle blow-off, like the SQV clip: a sharp main note near 6.36 kHz, airy hiss up to
+     *  ~13 kHz, ~400 ms long; about as loud as the hiss one. */
+    @Test fun whistleBlowOffIsASharpTsuuu() {
+        fun blow(kind: BlowOffSound): DoubleArray {
+            val t = turbo().apply { blowOffSound = kind }
+            t.run(1.5, 1.0, 0.8, false)
+            t.snap(blowOff = true)
+            return t.run(0.7, 0.0, 0.8, false)
+        }
+        val w = blow(BlowOffSound.WHISTLE)
+        val h = blow(BlowOffSound.HISS)
+        val head = w.copyOfRange(0, (0.3 * sr).toInt())
+        // 5 Hz steps: the main note is only ~30 Hz wide, coarser steps miss it
+        fun band(a: Double, b: Double) = generateSequence(a) { it + 5 }.takeWhile { it < b }.sumOf { power(head, it) }
+        val all = band(2500.0, 20000.0)
+        val note = band(6300.0, 6425.0)
+        val bright = band(7500.0, 13000.0)
+        val long = rms(w.copyOfRange((0.3 * sr).toInt(), (0.45 * sr).toInt())) / rms(head)
+        println("whistle blow-off: %.0f %% within 6.30-6.42 kHz, %.0f %% at 7.5-13 kHz (clip ~11 %%), level vs hiss %.1f dB, 0.3-0.45 s at %.2f of the start"
+            .format(100 * note / all, 100 * bright / all, 20 * kotlin.math.log10(rms(head) / rms(h.copyOfRange(0, (0.3 * sr).toInt()))), long))
+        assertTrue("sharp note", note / all > 0.4)
+        assertTrue("airy top", bright / all in 0.05..0.25)
+        assertTrue("long tail", long > 0.05)
+        assertTrue("silent after", rms(w.copyOfRange((0.62 * sr).toInt(), w.size)) < rms(head) * 0.01)
     }
 
     @Test fun switchesOffMeansNoSound() {
@@ -158,7 +184,7 @@ class TurboTest {
 
         System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() }?.let { d ->
             File(d).mkdirs()
-            write(File(d, "single_turbo_only.wav"), DoubleArray(turboOnly.size) { turboOnly[it] / 4 })   // write() is 4x
+            write(File(d, "single_turbo_only.wav"), turboOnly)
         }
     }
 
@@ -166,17 +192,20 @@ class TurboTest {
     @Test fun loneTurboWavs() {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        val b = turbo()
-        b.run(1.5, 1.0, 0.8, false)
-        b.snap(blowOff = true)
-        write(File(dir, "lone_bov.wav"), b.run(2.0, 0.0, 0.8, false))
+        for ((name, kind) in listOf("lone_bov" to BlowOffSound.HISS, "lone_bov_whistle" to BlowOffSound.WHISTLE)) {
+            val b = turbo().apply { blowOffSound = kind }
+            b.run(1.5, 1.0, 0.8, false)
+            b.snap(blowOff = true)
+            write(File(dir, "$name.wav"), b.run(2.0, 0.0, 0.8, false))
+        }
         // whistle: 1.5 s flat out, then let go
         val t = turbo()
         write(File(dir, "lone_whistle.wav"), t.run(1.5, 1.0, 0.8, true) + t.run(1.5, 0.0, 0.8, true))
     }
 
     private fun write(f: File, x: DoubleArray) {
-        val pcm = x.map { (it * 4).toFloat() }                    // louder: alone, it's quiet
+        val peak = x.maxOf { abs(it) }.coerceAtLeast(1e-9)
+        val pcm = x.map { (it / peak * 0.9).toFloat() }            // scaled to a 0.9 peak: no clipping
         val bb = java.nio.ByteBuffer.allocate(44 + pcm.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
         bb.put("RIFF".toByteArray()).putInt(36 + pcm.size * 2).put("WAVE".toByteArray())
         bb.put("fmt ".toByteArray()).putInt(16).putShort(1).putShort(1).putInt(sr).putInt(sr * 2).putShort(2).putShort(16)

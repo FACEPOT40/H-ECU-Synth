@@ -166,7 +166,12 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
             slider(30, 90, 65) { synth.camRpm = it * 100.0; showCam() }, camLabel))
         c.add(row(check("Engine sound", true) { synth.engineSound = it },
             check("Turbo", false) { synth.turbo = it },
-            check("Blow-off valve", false) { synth.blowOff = it }))
+            check("Blow-off valve", false) { synth.blowOff = it },
+            javax.swing.JComboBox(com.pai.hecusynth.BlowOffSound.entries.map { it.label }.toTypedArray()).apply {
+                isFocusable = false
+                toolTipText = "How the blow-off valve sounds"
+                addActionListener { synth.blowOffSound = com.pai.hecusynth.BlowOffSound.entries[selectedIndex] }
+            }))
         c.add(row(check("Exhaust pops", false) { synth.crackles = it },
             check("Backfire bangs", false) { synth.bangs = it },
 
