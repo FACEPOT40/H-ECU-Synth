@@ -295,6 +295,16 @@ Debug APK copied to `dist/` (gitignored).
   baseline + font descent; the throttle bar showed an orange strip at 0 % and the hint sat on it
   -> fill 0-100 % of the full height, clipped to the rounded bar, nothing at 0 %, hint dark
   when the fill is behind it. versionCode 3. When only one app changes, only its version moves.
+- **v1.0.2 (10 Nov, both apps)**, Pai: "tune the turbo by myself: which RPM the turbo spool
+  starts and which RPM it flutters; it fluttered at 5k, a bit high for a normal commute".
+  `Synth.turboFromRpm` (default 2,200) / `flutterFromRpm` (3,000), BIKE rpm; `Turbo` gets the
+  bike rpm (`next(..., bikeRpm)`): spool fraction = (rpm - from) / max(1000, 0.6 x (limiter -
+  from)); flutter only if the let-off rpm >= flutterFrom and boost > `SURGE_MIN_BOOST` 0.22 (was
+  0.25). Real cause of "only at 5k": the let-off check needed a > 30-point throttle drop, so a
+  30 % commuting throttle never counted -> now tps < 12 % after a peak >= 15 points higher in the
+  last 0.6 s (blow-off too). Phone: Sound tab Turbo card sliders (prefs `turbo_from`,
+  `flutter_from`); desktop: a row of two sliders. `TurboTest.flutterFromRpmSetting`: 3,500 rpm /
+  30 % for 2 s -> 11 "he"s with 3,000, none with 4,000. Not yet tried on the bike.
 
 ## Status
 - 0.1.0 (9 Nov): simulator built and unit-tested; not yet heard on the phone, sounds untuned

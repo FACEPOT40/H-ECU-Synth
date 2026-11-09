@@ -81,7 +81,7 @@ fun main() {
  * stop the engine. Or drag on the throttle bar with the mouse.
  */
 /** Desktop version: keep in step with the phone's versionName (app/build.gradle.kts). */
-const val VERSION = "1.0.0"
+const val VERSION = "1.0.2"
 
 class SynthWindow : JFrame("H-ECU Synth $VERSION (desktop)") {
     private val synth = Synth(DesktopAudio.RATE)
@@ -171,6 +171,12 @@ class SynthWindow : JFrame("H-ECU Synth $VERSION (desktop)") {
             check("Turbo", false) { synth.turbo = it },
             check("Blow-off valve", false) { synth.blowOff = it },
             check("Turbo flutter", false) { synth.flutter = it }))
+        val spoolLabel = label("", 12f, Ink.GREY)
+        val flutterLabel = label("", 12f, Ink.GREY)
+        c.add(row(label("Turbo spools from", 13f, Ink.GREY),
+            slider(10, 80, 22) { v -> synth.turboFromRpm = v * 100.0; spoolLabel.text = "%,d bike rpm".format(v * 100) }, spoolLabel,
+            label("Flutter from", 13f, Ink.GREY),
+            slider(10, 90, 30) { v -> synth.flutterFromRpm = v * 100.0; flutterLabel.text = "%,d bike rpm".format(v * 100) }, flutterLabel))
         val bovPitchLabel = label("", 12f, Ink.GREY)
         c.add(row(label("Blow-off pitch", 13f, Ink.GREY),
             slider(50, 110, 80) { v ->

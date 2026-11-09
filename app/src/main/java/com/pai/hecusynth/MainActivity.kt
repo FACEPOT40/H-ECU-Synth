@@ -93,6 +93,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             flutter = prefs.getBoolean("flutter", false)
             blowOffPitch = prefs.getInt("blow_off_pitch", 8000).toDouble()
             blowOffVolume = prefs.getInt("blow_off_volume", 100) / 100.0
+            turboFromRpm = prefs.getInt("turbo_from", 2200).toDouble()
+            flutterFromRpm = prefs.getInt("flutter_from", 3000).toDouble()
         }
         bikeRate = prefs.getBoolean("bike_rate", false)
         setContentView(buildUi())
@@ -254,6 +256,15 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.turbo = on
             prefs.edit().putBoolean("turbo", on).apply()
         })
+        val spoolText = uiText(12f, Look.GREY)
+        fun showSpool() { spoolText.text = "Turbo spools from %,d bike rpm".format(synth.turboFromRpm.toInt()) }
+        showSpool()
+        turbo.addView(spoolText)
+        turbo.addView(seek(70, (synth.turboFromRpm.toInt() - 1000) / 100) { v ->      // 1,000-8,000
+            synth.turboFromRpm = 1000.0 + v * 100
+            prefs.edit().putInt("turbo_from", synth.turboFromRpm.toInt()).apply()
+            showSpool()
+        })
         turbo.addView(switch("Blow-off valve", synth.blowOff) { on ->
             synth.blowOff = on
             prefs.edit().putBoolean("blow_off", on).apply()
@@ -283,7 +294,16 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             synth.flutter = on
             prefs.edit().putBoolean("flutter", on).apply()
         })
-        turbo.addView(uiText(11f, Look.GREY, "Flutter: after a pull (mid revs is enough), let go fully. Back on the throttle stops it."))
+        val flutterText = uiText(12f, Look.GREY)
+        fun showFlutterFrom() { flutterText.text = "Flutter from %,d bike rpm".format(synth.flutterFromRpm.toInt()) }
+        showFlutterFrom()
+        turbo.addView(flutterText)
+        turbo.addView(seek(80, (synth.flutterFromRpm.toInt() - 1000) / 100) { v ->    // 1,000-9,000
+            synth.flutterFromRpm = 1000.0 + v * 100
+            prefs.edit().putInt("flutter_from", synth.flutterFromRpm.toInt()).apply()
+            showFlutterFrom()
+        })
+        turbo.addView(uiText(11f, Look.GREY, "Flutter: after a pull, let go fully at or above that rpm. Back on the throttle stops it."))
         c.addView(turbo)
         gap(c)
 

@@ -60,6 +60,18 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     /** Blow-off loudness, 0..2 (1 = the tuned level). Applies right away. */
     var blowOffVolume = 1.0
 
+    // Pai's own turbo settings, in BIKE rpm (10 Nov: the flutter only came at ~5,000 rpm, too high
+    // for a normal commute). Used when [next] gets the bike rpm; without it (the unit tests) the
+    // turbo follows the style's rev range as before.
+    /** Below this the turbo barely turns; above it, it spools up (full spin ~60 % of the way to
+     *  the limiter). */
+    var spoolFromRpm = 2200.0
+    /** Letting off at or above this (after building some boost) gives the flutter. */
+    var flutterFromRpm = 3000.0
+    /** The bike's rev limiter (for where full spin is reached). */
+    var bikeRedline = 9500.0
+    private var bikeRpmNow = -1.0
+
     // surge ("turbo flutter")
     private var surgeIdx = 0            // which "tu"
     private var surgeTotal = 0          // 0 = no surge
@@ -99,11 +111,12 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             bovBand.set(hz, 25.0, sr)                       // same sharpness, only the pitch moves
             bovLevel = kotlin.math.sqrt(6500.0 / hz)        // a higher band holds more noise: same loudness
         }
-        // surge needs some boost (a pull, not a quick blip). Pai doesn't rev the real bike that
-        // high, so a moderate pull at mid revs (boost > 0.25) is enough, and it then sounds
-        // nearly like the full surge: the size goes by 0.6 + 0.4 x boost, so after a big pull
-        // (boost ~0.95) it's the approved sound unchanged, at mid revs a little shorter / lower
-        if (flutter && p > 0.25) {
+        // surge needs some boost (a pull, not a quick blip) and, with the bike rpm known, a
+        // let-off at or above Pai's "Flutter from" rpm. It then sounds nearly like the full
+        // surge: the size goes by 0.6 + 0.4 x boost, so after a big pull (boost ~0.95) it's the
+        // approved sound unchanged, after a gentle commuting pull a little shorter / lower
+        val highEnough = bikeRpmNow < 0 || bikeRpmNow >= flutterFromRpm
+        if (flutter && p > SURGE_MIN_BOOST && highEnough) {
             val big = 0.6 + 0.4 * p
             surgeSize = big
             fStart = 600.0 + 450.0 * big                        // ~1040 Hz after a big pull
@@ -121,9 +134,15 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
      * back on the throttle stops a surge at once (Pai: it kept playing while he rode on).
      * Returns the sound to add after the engine's saturation.
      */
-    fun next(load: Double, revs: Double, running: Boolean, whistle: Boolean, throttleNow: Double = load): Double {
+    fun next(load: Double, revs: Double, running: Boolean, whistle: Boolean, throttleNow: Double = load,
+             bikeRpm: Double = -1.0): Double {
+        bikeRpmNow = bikeRpm
         // spool: up with throttle and revs (~0.6 s), down when let go (~0.45 s: clip ~7.7 -> 2.6 kHz in ~1.2 s)
-        val target = if (running) (0.12 + 0.88 * ((revs - 0.1) / 0.6).coerceIn(0.0, 1.0)) * (0.1 + 0.9 * load) else 0.0
+        // how far into the spool range: from Pai's "Turbo spools from" bike rpm, full at ~60 % of
+        // the way to the limiter (or, without the bike rpm, the style's rev range as before)
+        val spool = if (bikeRpm >= 0) ((bikeRpm - spoolFromRpm) / maxOf(1000.0, 0.6 * (bikeRedline - spoolFromRpm))).coerceIn(0.0, 1.0)
+            else ((revs - 0.1) / 0.6).coerceIn(0.0, 1.0)
+        val target = if (running) (0.12 + 0.88 * spool) * (0.1 + 0.9 * load) else 0.0
         speed += (target - speed) / ((if (target > speed) 0.6 else 0.45) * sr)
         // boost builds quickly with throttle (more with turbo speed), leaks away slowly when
         // it's shut. (It used to need high revs and a long pull, so only the limiter got a
@@ -201,6 +220,9 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         // levels next to the engine (calibrated with TurboTest / the demo WAVs)
         const val WHISTLE = 0.35
         const val BLOW_OFF = 2.4
+        /** Boost needed for a flutter: a commuting pull (~20-30 % throttle for a second or two)
+         *  gets there, a quick blip (~0.15 s) doesn't. */
+        const val SURGE_MIN_BOOST = 0.22
         const val SURGE = 3.0           // as loud as the blow-off or more on the demos
         const val VOICE = 0.25          // the "he" voice ...
         const val BREATH = 0.35         // ... over a little breath noise

@@ -20,4 +20,4 @@ application {
     applicationName = "H-ECU-Synth"
 }
 
-version = "1.0.0"     // keep in step with Main.kt VERSION and the phone's versionName
+version = "1.0.2"     // keep in step with Main.kt VERSION and the phone's versionName

@@ -20,8 +20,8 @@ android {
         applicationId = "com.pai.hecusynth"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3                 // raise on every phone release
-        versionName = "1.0.1"
+        versionCode = 4                 // raise on every phone release
+        versionName = "1.0.2"
     }
     signingConfigs {
         if (!keystoreProps.isEmpty) create("release") {

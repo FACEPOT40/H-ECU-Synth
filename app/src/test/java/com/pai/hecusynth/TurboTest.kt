@@ -238,6 +238,39 @@ class TurboTest {
         assertTrue("surge should stop when reopened", after < during * 0.01)
     }
 
+    /** Pai: the flutter only came at ~5,000 rpm, too high for a commute. A commuting pull
+     *  (3,500 rpm, 30 % throttle, 2 s) then letting off must flutter with "Flutter from" at
+     *  3,000, and not with it at 4,000. */
+    @Test fun flutterFromRpmSetting() {
+        fun hes(letOffRpm: Double, open: Double, flutterFrom: Double): Int {
+            val s = Synth(sr).apply {
+                style = Styles.byId("single"); engineSound = false; flutter = true
+                turboFromRpm = 2200.0; flutterFromRpm = flutterFrom
+            }
+            val frame = FloatArray(sr / 60)
+            val pcm = ArrayList<Double>()
+            for (f in 0 until 60 * 4) {
+                val t = f / 60.0
+                val tps = if (t in 0.5..2.5) open else 0.0
+                val rpm = if (t < 2.5) letOffRpm else maxOf(1400.0, letOffRpm - (t - 2.5) * 2000)
+                if (f % 3 == 0) s.set(rpm, tps, tps == 0.0 && rpm > 2000)      // ~20 readings a second
+                s.render(frame, frame.size)
+                if (t >= 2.5) frame.forEach { pcm += it.toDouble() }
+            }
+            val env = pcm.chunked(192).map { ch -> sqrt(ch.sumOf { it * it } / ch.size) }
+            val top = env.max()
+            if (top < 1e-3) return 0
+            return (1 until env.size - 1).count { i ->
+                env[i] >= env.subList(maxOf(0, i - 10), minOf(env.size, i + 11)).max() && env[i] > 0.3 * top
+            }
+        }
+        val commute = hes(3500.0, 30.0, 3000.0)
+        val tooLow = hes(3500.0, 30.0, 4000.0)
+        println("commute pull at 3,500 rpm / 30 %%: %d 'he's with Flutter from 3,000, %d with 4,000".format(commute, tooLow))
+        assertTrue("commute flutter: $commute", commute >= 6)
+        assertEquals(0, tooLow)
+    }
+
     @Test fun switchesOffMeansNoSound() {
         val t = turbo()
         t.run(1.5, 1.0, 0.8, false)

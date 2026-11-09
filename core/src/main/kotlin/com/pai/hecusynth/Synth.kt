@@ -46,6 +46,8 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     @Volatile var flutter = false           // turbo flutter (compressor surge) after a big pull
     @Volatile var blowOffPitch = 8000.0     // Hz; Pai's pick (9 Nov); 6500 = the original
     @Volatile var blowOffVolume = 1.0       // 0..2, 1 = the tuned level
+    @Volatile var turboFromRpm = 2200.0     // bike rpm where the turbo starts to spool
+    @Volatile var flutterFromRpm = 3000.0   // bike rpm at let-off from which the flutter plays
 
     // ---- read back for the screen
     @Volatile var camHigh = false
@@ -198,12 +200,14 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             rampLeft = len
             val tps = inTps.coerceIn(0.0, 100.0)
             targetLoad = tps / 100.0
-            // let-off: the throttle was 30+ points higher within the last 0.6 s and is now
-            // nearly shut, however fast or slowly it was closed -> the blow-off valve lets the
-            // boost out
+            // let-off: the throttle was 15+ points higher within the last 0.6 s and is now nearly
+            // shut (< 12 %), however fast or slowly it was closed -> blow-off / flutter. (It used
+            // to need a drop of more than 30 points, so a gentle 30 % commuting throttle never
+            // counted: Pai's flutter only came at high revs, 10 Nov.)
             if (tps >= tpsPeak) { tpsPeak = tps; peakAge = 0 }
-            if (tps < 15 && tpsPeak - tps > 30) {
+            if (tps < 12 && tpsPeak - tps >= 15) {
                 turboFx.blowOffPitch = blowOffPitch
+                turboFx.flutterFromRpm = flutterFromRpm
                 turboFx.snap(blowOff, flutter)
                 tpsPeak = tps
                 peakAge = 0
@@ -349,7 +353,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             pre *= engineMix
 
             turboFx.blowOffVolume = blowOffVolume
-            pre += turboFx.next(load, spread, running, turbo || st.turbo, targetLoad)
+            turboFx.spoolFromRpm = turboFromRpm
+            turboFx.bikeRedline = range.redline
+            pre += turboFx.next(load, spread, running, turbo || st.turbo, targetLoad, bikeRpm = rpm)
 
             pre += backfire.fx * 0.9                 // pops and bangs, after the engine's rasp
 
