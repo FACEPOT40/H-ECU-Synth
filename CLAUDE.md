@@ -203,6 +203,14 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   the phone gets them when pasted into Engines.kt). `DesktopAudio.kt`: javax.sound 16-bit
   48 kHz, ~40 ms buffer. Run: `run_desktop.bat` (= `gradlew :desktop:run`). Seen working 9 Nov
   (screenshot + Pai revving it).
+- Phone tuning (9 Nov, Pai: "also add the sound tuning in the android app"): "Tune" button in
+  the top bar swaps the switch column for one slider per `Tuning.PARAMS` (label, help, value,
+  1,000 steps) for the chosen style, live; meter + throttle stay so you can rev while tuning.
+  Saved in SharedPreferences "tuning" with the desktop's keys ("styleId.setting"), loaded into
+  `tuned` at start; style buttons pick the tuned copy (compare by id). "Copy settings" =
+  `Tuning.toKotlin` to the clipboard; "Reset style" (confirm) removes that style's keys.
+  Desktop and phone tunings are separate (no sync). Built; not yet seen on a phone (no
+  emulator run: Pai starts it himself).
 - `Views.kt`: `RevMeterView`, `ThrottleView`. `Ui.kt`: same look/colors as the logger.
 - Icon: the logger's italic H with an amber sound wave instead of the bolt.
 

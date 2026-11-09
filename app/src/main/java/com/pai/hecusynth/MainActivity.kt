@@ -2,6 +2,8 @@ package com.pai.hecusynth
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Bundle
 import android.view.Choreographer
 import android.view.Gravity
@@ -13,10 +15,14 @@ import android.widget.CompoundButton
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Switch
+import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 
 /**
  * 0.1.0: the simulator. Pick a style, start the engine, hold the throttle and rev it.
+ * "Tune" swaps the switches for the same sound sliders as the desktop app (shared [Tuning]),
+ * saved on the phone per style; the meter and throttle stay, so you can rev while tuning.
  * Later the same screen gets a K-line source next to the simulator.
  */
 class MainActivity : Activity(), Choreographer.FrameCallback {
@@ -33,6 +39,14 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     private val styleButtons = mutableListOf<Pair<EngineStyle, Button>>()
 
     private val prefs by lazy { getSharedPreferences("synth", MODE_PRIVATE) }
+    /** Tuned styles, saved as "styleId.setting" -> value (the same keys as the desktop's file). */
+    private val tunePrefs by lazy { getSharedPreferences("tuning", MODE_PRIVATE) }
+    private val tuned = LinkedHashMap<String, EngineStyle>()
+    private lateinit var scroll: ScrollView
+    private lateinit var controls: LinearLayout
+    private lateinit var tunePanel: LinearLayout
+    private lateinit var tuneButton: Button
+    private var tuning = false
     private var bikeRate = false          // send data ~17 times a second, like the real K-line
     private var sinceSend = 0.0
     private var lastFrame = 0L
@@ -40,9 +54,11 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val saved = tunePrefs.all.mapValues { it.value.toString() }
+        Styles.ALL.forEach { tuned[it.id] = Tuning.load(it, saved) }
         synth = Synth(AudioOut.nativeRate()).apply {
             bike = this@MainActivity.bike
-            style = Styles.byId(prefs.getString("style", null))
+            style = tuned[prefs.getString("style", null)] ?: tuned.getValue(Styles.ALL[0].id)
             volume = prefs.getInt("volume", 70) / 100.0
             camEnabled = prefs.getBoolean("cam_on", false)
             camRpm = prefs.getInt("cam_rpm", 6500).toDouble()
@@ -73,6 +89,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         })
         top.addView(uiText(13f, Look.AMBER, "  Simulator"), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        tuneButton = uiButton("Tune") { toggleTuning() }
+        top.addView(tuneButton)
         top.addView(uiButton("ⓘ") { about() })
         root.addView(top)
 
@@ -95,7 +113,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
 
         // bottom: controls on the left, throttle on the right
         val bottom = LinearLayout(this)
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        tunePanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
         engineButton = uiButton("Start engine", Tone.RECORD) { toggleEngine() }
         controls.addView(engineButton, LinearLayout.LayoutParams(MATCH_PARENT, dp(56)))
@@ -172,7 +191,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             "Bike data rate: feeds the sound at the K-line's speed, to hear how it will be on the bike."))
 
         // the switches scroll: they no longer all fit beside the throttle
-        val scroll = android.widget.ScrollView(this).apply { addView(controls) }
+        scroll = ScrollView(this).apply { addView(controls) }
         bottom.addView(scroll, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply { rightMargin = dp(12) })
         throttle = ThrottleView(this)
         bottom.addView(throttle, LinearLayout.LayoutParams(dp(120), MATCH_PARENT))
@@ -201,16 +220,112 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     }
 
     private fun pickStyle(st: EngineStyle) {
-        synth.style = st
+        synth.style = tuned.getValue(st.id)                  // with the phone's own tuning
         prefs.edit().putString("style", st.id).apply()
         showStyle()
+        if (tuning) buildTunePanel()
     }
 
     private fun showStyle() {
         val st = synth.style
-        styleButtons.forEach { (s, b) -> b.tone(if (s === st) Tone.PRIMARY else Tone.PLAIN) }
+        styleButtons.forEach { (s, b) -> b.tone(if (s.id == st.id) Tone.PRIMARY else Tone.PLAIN) }
         meter.redline = st.redline
         showCam()
+    }
+
+    // ------------------------------------------------------------ tuning (like the desktop)
+
+    private fun toggleTuning() {
+        tuning = !tuning
+        scroll.removeAllViews()
+        if (tuning) {
+            buildTunePanel()
+            scroll.addView(tunePanel)
+            tuneButton.text = "Done"
+            tuneButton.tone(Tone.PRIMARY)
+        } else {
+            scroll.addView(controls)
+            tuneButton.text = "Tune"
+            tuneButton.tone(Tone.PLAIN)
+        }
+        scroll.scrollTo(0, 0)
+    }
+
+    /** One slider per sound setting of the chosen style; moving it changes the sound at once. */
+    private fun buildTunePanel() {
+        tunePanel.removeAllViews()
+        val st = synth.style
+        tunePanel.addView(uiText(15f, Look.TEXT, "Tune: ${st.name}").apply { typeface = android.graphics.Typeface.DEFAULT_BOLD })
+        tunePanel.addView(uiText(11f, Look.GREY, "Saved on this phone. Rev with the throttle while you tune."))
+        val buttons = LinearLayout(this)
+        buttons.addView(uiButton("Copy settings") { copySettings() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        buttons.addView(uiButton("Reset style") { resetStyle() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        tunePanel.addView(buttons)
+        val steps = 1000
+        for (prm in Tuning.PARAMS) {
+            fun toPos(v: Double) = ((v - prm.min) / (prm.max - prm.min) * steps).toInt().coerceIn(0, steps)
+            fun fromPos(p: Int) = prm.min + (prm.max - prm.min) * p / steps
+            val name = uiText(13f, Look.TEXT, prm.label).apply { setPadding(0, dp(10), 0, 0) }
+            val value = uiText(13f, Look.AMBER, fmt(prm.get(st)))
+            val head = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            head.addView(name, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            head.addView(value)
+            tunePanel.addView(head)
+            tunePanel.addView(uiText(11f, Look.GREY, prm.help))
+            tunePanel.addView(SeekBar(this).apply {
+                max = steps
+                progress = toPos(prm.get(st))
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) {
+                        if (!fromUser) return
+                        val v = fromPos(p)
+                        value.text = fmt(v)
+                        val cur = tuned.getValue(synth.style.id)
+                        tuned[cur.id] = prm.set(cur, v)
+                        synth.style = tuned.getValue(cur.id)
+                        if (prm.key == "redline" || prm.key == "idle") showStyle()
+                    }
+                    override fun onStartTrackingTouch(s: SeekBar) {}
+                    override fun onStopTrackingTouch(s: SeekBar) = saveTuning()
+                })
+            })
+        }
+    }
+
+    private fun fmt(v: Double) = when {
+        v >= 100 -> "%,.0f".format(v)
+        v >= 10 -> "%.1f".format(v)
+        else -> "%.2f".format(v)
+    }
+
+    private fun saveTuning() {
+        val e = tunePrefs.edit()
+        tuned.values.forEach { st -> Tuning.save(st).forEach { (k, v) -> e.putString(k, v) } }
+        e.apply()
+    }
+
+    private fun resetStyle() {
+        val st = synth.style
+        AlertDialog.Builder(this)
+            .setMessage("Put ${st.label} back to its built-in sound?")
+            .setPositiveButton("Reset") { _, _ ->
+                tuned[st.id] = Styles.byId(st.id)
+                synth.style = tuned.getValue(st.id)
+                val e = tunePrefs.edit()
+                Tuning.PARAMS.forEach { e.remove("${st.id}.${it.key}") }
+                e.apply()
+                showStyle()
+                buildTunePanel()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** The style's values as text (same as the desktop's "Copy as Kotlin"), to send to Claude. */
+    private fun copySettings() {
+        val text = Tuning.toKotlin(synth.style)
+        (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("H-ECU Synth tuning", text))
+        Toast.makeText(this, "Copied ${synth.style.label} settings", Toast.LENGTH_SHORT).show()
     }
 
     private fun showCam() {
