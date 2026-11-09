@@ -18,6 +18,10 @@ android {
             isMinifyEnabled = false
         }
     }
+    // the sound engine is shared with the desktop app: core/ (plain Kotlin, no Android)
+    sourceSets {
+        getByName("main") { kotlin.srcDir("../core/src/main/kotlin") }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

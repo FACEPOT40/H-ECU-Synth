@@ -5,8 +5,9 @@ package com.pai.hecusynth
  *
  * Firing angles are crank degrees in the four-stroke cycle (720° = 2 turns). That pattern is what
  * makes a V-twin lope and an I4 scream: even spacing gives a smooth tone, uneven spacing a beat.
+ * A data class so the tuning panel can make changed copies ([Tuning]) while the sound plays.
  */
-class EngineStyle(
+data class EngineStyle(
     val id: String,
     val label: String,          // button text
     val name: String,           // long name

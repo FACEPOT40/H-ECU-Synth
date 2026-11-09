@@ -79,7 +79,10 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var built: EngineStyle? = null
     private var crank = 0.0
     private var next = DoubleArray(0)
-    private var jit = DoubleArray(0)
+    private var off = DoubleArray(0)        // this cycle's timing offset (character + wobble)
+    private var uAmp = DoubleArray(0)       // each cylinder's fixed character, -1..1; scaled by
+    private var uDeg = DoubleArray(0)       // the style's uneven* settings every block, so the
+    private var uWidth = DoubleArray(0)     // tuning sliders work live
     private var cylAmp = DoubleArray(0)
     private var cylWidth = DoubleArray(0)
     private var phase = DoubleArray(0)
@@ -113,10 +116,13 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
         built = st
         val n = st.cylinders
         // each cylinder's own fixed character: loudness, timing and pulse length
-        cylAmp = DoubleArray(n) { 1.0 + st.unevenAmp * (rand01() * 2 - 1) }
-        next = DoubleArray(n) { st.firing[it] + st.unevenDeg * (rand01() * 2 - 1) + 1.0 }
-        cylWidth = DoubleArray(n) { st.pulseDeg * (1.0 + st.unevenWidth * (rand01() * 2 - 1)) }
-        jit = DoubleArray(n)
+        uAmp = DoubleArray(n) { rand01() * 2 - 1 }
+        uDeg = DoubleArray(n) { rand01() * 2 - 1 }
+        uWidth = DoubleArray(n) { rand01() * 2 - 1 }
+        cylAmp = DoubleArray(n)
+        cylWidth = DoubleArray(n)
+        off = DoubleArray(n) { st.unevenDeg * uDeg[it] }
+        next = DoubleArray(n) { st.firing[it] + off[it] + 1.0 }
         phase = DoubleArray(n) { -1.0 }
         amp = DoubleArray(n)
         barkEnv = DoubleArray(n)
@@ -137,7 +143,15 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
 
     fun render(out: FloatArray, frames: Int) {
         val st = style
-        if (st !== built) build(st)
+        // a different engine layout starts a new engine; a tuned copy of the same one carries on
+        // without a click (only its settings change)
+        val old = built
+        if (old == null || old.id != st.id || !old.firing.contentEquals(st.firing)) build(st)
+        built = st
+        for (c in 0 until st.cylinders) {
+            cylAmp[c] = 1.0 + st.unevenAmp * uAmp[c]
+            cylWidth[c] = st.pulseDeg * (1.0 + st.unevenWidth * uWidth[c])
+        }
         val range = bike
 
         // new bike data: glide to it over the time since the last reading (12..150 ms)
@@ -188,9 +202,9 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             for (c in 0 until n) {
                 if (crank >= next[c]) {
                     val over = crank - next[c]
-                    next[c] += 720.0 - jit[c]
-                    jit[c] = st.jitterDeg * (1 - 0.8 * spread) * (rand01() * 2 - 1)
-                    next[c] += jit[c]
+                    next[c] += 720.0 - off[c]
+                    off[c] = st.unevenDeg * uDeg[c] + st.jitterDeg * (1 - 0.8 * spread) * (rand01() * 2 - 1)
+                    next[c] += off[c]
                     if (running) fire(c, st, over, rpmS)
                 }
                 val p = phase[c]

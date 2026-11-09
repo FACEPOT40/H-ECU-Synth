@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "HECUSynth"
 include(":app")
+include(":desktop")    // PC app for trying and tuning the sounds

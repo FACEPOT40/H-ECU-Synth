@@ -22,7 +22,13 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
 - Only one app can use the cable at a time, so the synth can't run next to the logger.
 - No Honda branding (wing, logos); the About says "not affiliated with Honda".
 
-## Files (app/src/main/java/com/pai/hecusynth)
+## Layout
+- `core/src/main/kotlin/com/pai/hecusynth/`: the sound engine, plain Kotlin, shared by the phone
+  (`app/build.gradle.kts` adds it with `kotlin.srcDir`: AGP 9's built-in Kotlin ignores
+  `java.srcDir` for this) and the desktop app. Edit it once, both get it.
+- `app/`: Android app. `desktop/`: PC app (Kotlin/JVM 2.2.10 + Swing, no libraries).
+
+## Files (core/ = Engines, Synth, EngineSim, Tuning; app/ = the rest)
 - `Engines.kt`: `EngineStyle` (firing angles in the 720° cycle + sound parameters), `Styles.ALL`,
   `BikeRange` (bike idle/redline -> style idle/redline), `CamSwitch` (300 rpm hysteresis).
 - Vacuum-cleaner fix (9 Nov, Pai: V6/V8/V10 "sound like a vacuum cleaner"): even-firing
@@ -44,6 +50,19 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
 - `MainActivity.kt`: simulator screen (style buttons, rev meter, Start/Stop engine, volume,
   cam crossover switch + rpm, exhaust pops, "Bike data rate (17/s)"), throttle on the right.
   Settings in SharedPreferences "synth". Audio runs only while the screen is open.
+- `Tuning.kt`: every tunable style setting (label, help text, range, get / copy-set),
+  `toKotlin()` (the "Copy as Kotlin" text to paste over a style in `Styles.ALL`), save / load.
+  `EngineStyle` is a data class for this. `Synth` keeps each cylinder's random character as
+  -1..1 units and scales them by the style every block, so a slider moves the sound live
+  without restarting the engine (`TuningTest.liveChangeDoesNotClick`).
+- `desktop/.../Main.kt` (9 Nov, Pai: "make a desktop app first, easier to test"): style
+  buttons, rev meter + throttle bar (mouse drag), Start/Stop (Enter), volume, cam, pops, bike
+  data rate, Record WAV; tuning panel on the right (one slider per `Tuning.PARAMS`, help under
+  each), "Copy as Kotlin", "Reset this style". Keys: hold Space/Up = 100 %, 1..9 = 10..90 %,
+  0 = 100 %. Tuned values persist in `%USERPROFILE%\.hecusynth	uning.properties` (desktop only;
+  the phone gets them when pasted into Engines.kt). `DesktopAudio.kt`: javax.sound 16-bit
+  48 kHz, ~40 ms buffer. Run: `run_desktop.bat` (= `gradlew :desktop:run`). Seen working 9 Nov
+  (screenshot + Pai revving it).
 - `Views.kt`: `RevMeterView`, `ThrottleView`. `Ui.kt`: same look/colors as the logger.
 - Icon: the logger's italic H with an amber sound wave instead of the bolt.
 
@@ -58,5 +77,8 @@ Debug APK copied to `dist/` (gitignored).
 ## Status
 - 0.1.0 (9 Nov): simulator built and unit-tested; not yet heard on the phone, sounds untuned
   by ear. BikeRange is fixed at idle 1400 / redline 9500 (no setting yet).
+- 9 Nov: Pai likes the I4; the others sound "too synthetic". Tuning by ear in the desktop app
+  is the next step; if tuning can't fix a style, next ideas: per-cylinder header lengths
+  (better exhaust model), or Pai's own Wave recording as the single's base.
 - Next: tune by ear with Pai, bike rev range setting, then K-line source (foreground service
   for screen-off, read 0x17 only for rpm / TPS / injector (inj 0 = fuel cut)).

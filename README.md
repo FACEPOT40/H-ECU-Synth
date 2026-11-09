@@ -19,6 +19,10 @@ sound like a V10 at 19,000.
 Also: cam crossover at a chosen rpm (harder tone above it), exhaust pops when you let go,
 and a "bike data rate" switch that feeds the sound at K-line speed (~17 readings a second).
 
+## Desktop app (try and tune the sounds on the PC)
+`run_desktop.bat`: the same sound engine as the phone, with a slider for every sound setting.
+Hold Space to rev, Enter starts / stops the engine. "Copy as Kotlin" copies a tuned style.
+
 ## Build
 ```
 gradlew.bat testDebugUnitTest assembleDebug
