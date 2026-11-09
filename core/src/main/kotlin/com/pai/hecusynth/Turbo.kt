@@ -32,6 +32,16 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     private var whistlePh = 0.0
     private var wobble = 0.0
 
+    // flutter character knobs (for picking a version by ear; 0 / 1 = the current sound)
+    /** 0..1: how much of the flutter is a low-mid "tu" (300-1000 Hz) instead of high hiss. */
+    var flutterBody = 0.0
+    /** Wobble speed: 1 = ~38 slowing to ~12 a second; lower = a slower "stu-tu-tu". */
+    var flutterSpeed = 1.0
+    /** Flutter length and loudness. */
+    var flutterLength = 1.0
+    var flutterLevel = 1.0
+    private val tuBand = Svf().apply { set(550.0, 0.8, sr) }
+
     // flutter
     private var flutterT = 0.0          // seconds into the flutter
     private var flutterLen = 0.0        // 0 = none
@@ -60,7 +70,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
         if (flutter) {
             flutterT = 0.0
             flutterSize = if (blowOff) p * 0.4 else p        // after a blow-off, only a little
-            flutterLen = (if (blowOff) 0.35 else 0.6 + 0.9 * p) * (0.85 + 0.3 * rnd())
+            flutterLen = (if (blowOff) 0.35 else 0.6 + 0.9 * p) * (0.85 + 0.3 * rnd()) * flutterLength
         }
         if (blowOff || flutter) pressure = 0.0
     }
@@ -87,7 +97,7 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             if (prog >= 1) {
                 flutterLen = 0.0
             } else {
-                flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * (0.9 + 0.2 * rnd()) / sr
+                flutPh += (12.0 + 26.0 * exp(-3.0 * prog)) * flutterSpeed * (0.9 + 0.2 * rnd()) / sr
                 if (flutPh >= 1) {
                     flutPh -= 1.0
                     flutDepth = 0.75 + 0.2 * rnd()          // deep (Pai: like a GT-R R34 / 2JZ Supra)
@@ -98,8 +108,10 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
                 airBand.process(nz)
                 airLp += (nz - airLp) * 0.15                            // hiss above ~1 kHz ...
                 lowLp += (nz - lowLp) * 0.05                            // ... and low air
-                val air = airBand.band * 1.2 + (nz - airLp) * 0.2 + lowLp * 3.0
-                out += air * wob * fade * FLUTTER
+                tuBand.process(nz)
+                val hiss = 1 - 0.7 * flutterBody
+                val air = (airBand.band * 1.2 + (nz - airLp) * 0.2) * hiss + lowLp * 3.0 + tuBand.band * 4.0 * flutterBody
+                out += air * wob * fade * FLUTTER * flutterLevel
                 gate = 1 - 0.85 * (1 - prog) + 0.85 * (1 - prog) * (wob - 1 + flutDepth) / (2 * flutDepth)
                 flutterT += 1 / sr
             }

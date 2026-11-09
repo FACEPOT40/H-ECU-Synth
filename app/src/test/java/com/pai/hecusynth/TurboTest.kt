@@ -111,6 +111,41 @@ class TurboTest {
         write(File(dir, "lone_whistle.wav"), t.run(1.5, 1.0, 0.8, true) + t.run(1.5, 0.0, 0.8, true))
     }
 
+    /** Flutter versions for Pai to pick by ear: A = low-mid "tu" body, B = A slower,
+     *  C = B louder and longer. Alone (no engine) and on the I4 (snap at 6 s). */
+    @Test fun flutterVersionWavs() {
+        val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
+        dir.mkdirs()
+        val versions = mapOf<String, Turbo.() -> Unit>(
+            "A" to { flutterBody = 1.0 },
+            "B" to { flutterBody = 1.0; flutterSpeed = 0.6 },
+            "C" to { flutterBody = 1.0; flutterSpeed = 0.6; flutterLength = 1.5; flutterLevel = 1.6 },
+        )
+        for ((name, knobs) in versions) {
+            val t = turbo().apply(knobs)
+            t.run(1.5, 1.0, 0.8, false)
+            t.snap(blowOff = false, flutter = true)
+            write(File(dir, "flutter_$name.wav"), t.run(2.5, 0.0, 0.8, false))
+
+            val s = Synth(sr).apply { style = Styles.byId("i4"); turbo = true; flutter = true; turboFx.knobs() }
+            val sim = EngineSim()
+            val pcm = ArrayList<Double>()
+            val frame = FloatArray(sr / 60)
+            var since = 1.0
+            for (f in 0 until 60 * 9) {
+                val tt = f / 60.0
+                if (f == 0) sim.start()
+                val tps = if (tt in 3.4..6.0) 100.0 else 0.0
+                sim.step(1 / 60.0, tps)
+                since += 1 / 60.0
+                if (since >= 1 / 17.7) { since = 0.0; s.set(sim.rpm, tps, sim.fuelCut) }
+                s.render(frame, frame.size)
+                frame.forEach { pcm += it / 4.0 }            // write() makes it 4x louder again
+            }
+            write(File(dir, "i4_flutter_$name.wav"), pcm.toDoubleArray())
+        }
+    }
+
     private fun write(f: File, x: DoubleArray) {
         val pcm = x.map { (it * 4).toFloat() }                    // louder: alone, it's quiet
         val bb = java.nio.ByteBuffer.allocate(44 + pcm.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)

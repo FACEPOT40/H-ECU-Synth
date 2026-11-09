@@ -141,7 +141,12 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   `flutDepth` 0.35-0.65 -> 0.75-0.95 (same sine, same rhythm / level), whistle chop 0.5 ->
   0.85. Measured on `lone_flutter`: median dip between "chu"s 0.59 -> 0.27 of the peak. Next
   knobs if wanted, one at a time: slower rate (big turbos flutter slower), longer flutter.
-  Not yet heard by Pai.
+  Pai: "still not aggressive as Stutututu from the example". Added knobs on `Turbo`
+  (`flutterBody` 0..1 = low-mid "tu" via `tuBand` Svf 550 Hz Q 0.8 instead of hiss,
+  `flutterSpeed`, `flutterLength`, `flutterLevel`; defaults = the current sound) and
+  `TurboTest.flutterVersionWavs` renders A (body 1), B (A + speed 0.6), C (B + length 1.5,
+  level 1.6) as `flutter_A/B/C.wav` + `i4_flutter_A/B/C.wav` for Pai to pick by ear; then make
+  the pick the default. Waiting for Pai's pick.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,

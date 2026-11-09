@@ -133,7 +133,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
 
     // ---- turbo whistle, flutter, blow-off (see Turbo); uses the pops' random numbers so it
     // never changes the engine's own sound
-    private val turboFx by lazy { Turbo(sr) { randFx() } }
+    internal val turboFx by lazy { Turbo(sr) { randFx() } }   // internal: tests set its knobs
 
     private val barkDecay = exp(-1.0 / (0.0025 * sr))
 
