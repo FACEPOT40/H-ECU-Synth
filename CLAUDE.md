@@ -129,7 +129,14 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   Measured vs clip: 6349 Hz half-power 6344-6376, 9900 Hz, centre 6825 (6754), shares
   5.5-7.5 / 7.5-10 / 10-13 kHz 85 / 9 / 2 % (79 / 7 / 4), rise 110 ms, ~420 ms.
   `TurboTest.whistleBlowOffIsASharpTsuuu`; demo `lone_bov_whistle.wav`. Lone demo WAVs are now
-  scaled to a 0.9 peak (the old x4 clipped, the first lone_bov too). Not yet heard by Pai.
+  scaled to a 0.9 peak (the old x4 clipped, the first lone_bov too).
+  Pai: the sine version "sounds like bell instead of hiss of bov". Pure tones that swell and
+  fade = a bell. Now the notes are AIR: white noise through very narrow `Svf` bands (6360 Hz
+  Q 120, 9890 Hz Q 80; note this Svf's band output peaks at x Q, hence x0.2 / x0.039), plus
+  the same air. Measured vs clip: noisiness 0.07 (clip 0.10, bell version 0.05), half-power
+  6342-6389 Hz (6347-6380), shares 86 / 5 / 4 % (79 / 7 / 4), centre 6770 (6754), choppy
+  0.12-1.0 like the clip, level = HISS. Lesson: anything pitched must be pitched NOISE, never
+  pure tones (bell) or struck resonators (PVC). Not yet heard by Pai.
 - Engine sound switch (9 Nov, Pai: "mute the engine, just turbo spool and BOV ... on 1
   cylinder engine" = the real bike's own engine + the phone's turbo): `Synth.engineSound`
   (default on; desktop checkbox, phone switch, pref `engine_sound`). Off fades only the

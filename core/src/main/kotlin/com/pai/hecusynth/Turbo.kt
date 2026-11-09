@@ -47,9 +47,10 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
     var blowOffSound = BlowOffSound.WHISTLE
     private var bovT = -1.0             // seconds into the blow-off, < 0 = none
     private var bovKind = BlowOffSound.WHISTLE
-    private var wPh1 = 0.0
-    private var wPh2 = 0.0
-    private var wWob = 0.0
+    // the whistle is AIR squeezed into narrow bands (pitched hiss), not pure tones: pure tones
+    // that swell and fade sounded like a bell (Pai)
+    private val wNote1 = Svf().apply { set(6360.0, 120.0, sr) }  // main note, ~50 Hz wide
+    private val wNote2 = Svf().apply { set(9890.0, 80.0, sr) }   // second note
     private val wAir = Svf().apply { set(8500.0, 0.6, sr) }     // airy hiss ~5-13 kHz
     private val wLowAir = Svf().apply { set(4800.0, 2.0, sr) }
     private var bovSize = 0.0
@@ -109,13 +110,11 @@ class Turbo(private val sr: Double, private val rnd: () -> Double) {
             chatter2 += (chatter - chatter2) * 0.03
             val deep = if (t < 0.2) 1.0 else 0.4
             val mod = (0.65 + 9.0 * deep * chatter2).coerceIn(0.25, 1.2)
-            wWob += (rnd() * 2 - 1 - wWob) * 0.002
-            wPh1 += 6360.0 * (1 + 0.003 * wWob) / sr
-            if (wPh1 >= 1) wPh1 -= 1.0
-            wPh2 += 9890.0 * (1 + 0.003 * wWob) / sr
-            if (wPh2 >= 1) wPh2 -= 1.0
-            val tone = sin(2 * PI * wPh1) + 0.3 * sin(2 * PI * wPh2)
             val nz = rnd() * 2 - 1
+            wNote1.process(nz)
+            wNote2.process(nz)
+            // (this filter boosts its centre by its sharpness Q, so the notes are scaled down)
+            val tone = wNote1.band * 0.2 + wNote2.band * 0.3 * 0.13
             wAir.process(nz)
             wLowAir.process(nz)
             val air = wAir.band * W_AIR + wLowAir.band * W_AIR * 0.3
