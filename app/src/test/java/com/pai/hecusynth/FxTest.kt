@@ -58,6 +58,7 @@ class FxTest {
     @Test fun burstIsAFadingRowOfPops() {
         var r = 0x2545F4914F6CDD1DL
         val bf = Backfire(48000.0) { r = r xor (r shl 13); r = r xor (r ushr 7); r = r xor (r shl 17); (r ushr 11).toDouble() / (1L shl 53) }
+        bf.sound = PopSound.CRACK                       // the sound made inside Backfire
         bf.burst(6, 1.0)
         val x = DoubleArray(sr / 2) { bf.step(); bf.fx }
         val hits = x.toList().chunked(1392).map { ch -> ch.maxOf { abs(it) } }   // 29 ms slots
@@ -72,8 +73,11 @@ class FxTest {
     @Test fun popProbeWavs() {
         val dir = java.io.File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
-        for (pops in listOf(false, true)) {
-            val s = Synth(sr).apply { style = Styles.byId("i4"); crackles = pops }
+        for (pops in listOf("", "bark", "crack")) {
+            val s = Synth(sr).apply {
+                style = Styles.byId("i4"); crackles = pops != ""
+                popSound = if (pops == "crack") PopSound.CRACK else PopSound.BARK
+            }
             val block = FloatArray(sr / 60)
             val pcm = ArrayList<Float>()
             for (f in 0 until 60 * 4) {
@@ -84,13 +88,13 @@ class FxTest {
             }
             val bb = java.nio.ByteBuffer.allocate(pcm.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
             pcm.forEach { bb.putShort((it * 32767).toInt().toShort()) }
-            java.io.File(dir, if (pops) "probe_pops.raw" else "probe_nopops.raw").writeBytes(bb.array())
+            java.io.File(dir, if (pops == "") "probe_nopops.raw" else "probe_$pops.raw").writeBytes(bb.array())
         }
     }
 
     /** Snap the throttle shut from high revs: bangs (when on) make it much louder for a moment. */
-    private fun snapPeak(bangs: Boolean, pops: Boolean = false): Double {
-        val s = Synth(sr).apply { style = Styles.byId("i4"); this.bangs = bangs; crackles = pops }
+    private fun snapPeak(bangs: Boolean, sound: PopSound = PopSound.BARK): Double {
+        val s = Synth(sr).apply { style = Styles.byId("i4"); this.bangs = bangs; popSound = sound }
         val sim = EngineSim()
         sim.start()
         val block = FloatArray(sr / 60)
@@ -111,9 +115,11 @@ class FxTest {
 
     @Test fun bangsOnlyWhenSwitchedOn() {
         val off = snapPeak(false)
-        val on = snapPeak(true)
-        println("peak after snapping shut: bangs off %.2f, on %.2f".format(off, on))
-        assertTrue("$off -> $on", on > off * 1.8)
-        assertTrue(on <= 1.0)
+        for (sound in PopSound.entries) {
+            val on = snapPeak(true, sound)
+            println("peak after snapping shut: bangs off %.2f, on (%s) %.2f".format(off, sound.label, on))
+            assertTrue("$sound: $off -> $on", on > off * 1.8)
+            assertTrue(on <= 1.0)
+        }
     }
 }

@@ -199,10 +199,11 @@ class SynthTest {
         val dir = File(System.getProperty("wav.dir")?.takeIf { it.isNotEmpty() } ?: return)
         dir.mkdirs()
         // stock, pops only, bangs only
-        for (st in Styles.ALL) for (fx in listOf("", "_pops", "_bangs")) {
+        for (st in Styles.ALL) for (fx in listOf("", "_pops", "_bangs", "_pops_crack", "_bangs_crack")) {
             val s = Synth(sr).apply {
                 style = st; camEnabled = true; camRpm = 6500.0
-                crackles = fx == "_pops"; bangs = fx == "_bangs"
+                crackles = fx.startsWith("_pops"); bangs = fx.startsWith("_bangs")
+                popSound = if (fx.endsWith("_crack")) PopSound.CRACK else PopSound.BARK
             }
             val sim = EngineSim()
             val pcm = ArrayList<Float>()

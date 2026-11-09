@@ -164,8 +164,14 @@ class SynthWindow : JFrame("H-ECU Synth (desktop)") {
         c.add(row(label("Volume", 13f, Ink.GREY), slider(0, 100, 70) { synth.volume = it / 100.0 }))
         c.add(row(check("Cam crossover", false) { synth.camEnabled = it; showCam() },
             slider(30, 90, 65) { synth.camRpm = it * 100.0; showCam() }, camLabel))
+        val popSound = javax.swing.JComboBox(com.pai.hecusynth.PopSound.entries.map { it.label }.toTypedArray()).apply {
+            isFocusable = false
+            toolTipText = "How pops and bangs sound: try both"
+            addActionListener { synth.popSound = com.pai.hecusynth.PopSound.entries[selectedIndex] }
+        }
         c.add(row(check("Exhaust pops", false) { synth.crackles = it },
             check("Backfire bangs", false) { synth.bangs = it },
+            label("Pop sound", 13f, Ink.GREY), popSound,
             check("Bike data rate (17/s)", false) { bikeRate = it }))
         c.add(row(label("Throttle: hold Space or Up = 100 %, hold 1..9 = 10..90 %, 0 = 100 %, " +
             "or drag on the bar. Enter = start / stop.", 12f, Ink.GREY)))

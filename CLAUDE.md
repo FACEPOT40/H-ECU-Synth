@@ -67,18 +67,19 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   instrument". Measured (spectral flatness 150-4000 Hz, 1 = noise): clip pops 0.034 / 0.024
   just after, v2 0.030 / 0.010 (too pure a ring). Pure noise tries gave hiss (0.18-0.39) or a
   dull whump (96 % under 200 Hz); the engine's own pipe comb puts it at 625/1250 Hz instead.
-  v3 (`Backfire.kt`): burst scheduler (pops 28-35 ms apart, each x0.7-0.82, shorter) + per pop
-  a 20-30 ms blast (swells over the first quarter) of noise into (a) five pipe-note resonators
-  320-1300 Hz that ring only ~35 -> 15 ms and get NEW random notes (+-10 %) every pop, (b) two
-  wide filters (450 Hz Q 0.9, 950 Hz Q 1.1) for rough air; plus a 1-2.7 kHz crack and a dark
-  noise "air" tail (no echoes: comb echoes ring). Its `fx` goes in after the engine's
-  saturation; a little of the blast also goes down the engine's pipe (`excite`), and the tone
-  filter opens slightly while it sounds (`open`). Own RNG (`randFx`) so pops never change the
-  engine's random sound. Bang = longer (45 ms), 1.5-1.8 loud, 50 ms ring, 1.8x crack, longer
-  tail. Measured with `FxTest.popProbeWavs` (same coasting run with / without pops,
-  difference = the pops) + the clip: level +12-15 dB (clip median +11.5), flatness 0.05 / 0.04,
-  energy <200 / 200-500 / 500-1k / 1-2k Hz = 1 / 48 / 40 / 10 % (clip 0-7 / 50-64 / 22-30 /
-  13-16). Not yet heard by Pai. Measuring scripts were throwaway (scratchpad).
+  v3 (short, per-pop-detuned resonators + wide filters) measured close to the clip on level,
+  flatness and spectrum, but Pai: "still sounds like RimbaTubes". Lesson: struck pitched
+  resonators read as a tube instrument whatever the ring time, and the numbers didn't catch it;
+  let Pai judge by ear and offer choices.
+  v4 (now, `Backfire.kt`, no pitched parts at all): same burst timing; `PopSound` picked by
+  ear (desktop drop-down "Pop sound", phone button, pref `pop_sound`):
+  BARK (default) = `takeBark()` turns the next fuel-cut firing into a 2.5x pulse, 1.6x longer,
+  with 8 ms combustion noise, while the tone filter opens (+3000 Hz x `open`) and rasp rises
+  (x 1 + open): the engine itself barks; plus a small shock click. CRACK = shock wave (0.4 ms up,
+  -0.6 by 1.6 ms, 0 by 3.6 ms) + 5 ms noise burst 150 Hz-3.5 kHz, soft-clipped. Both: dark noise
+  air tail 50 ms (bang 140 ms). Probe measure: bark +15 dB, mostly < 200 Hz, 20 ms decay; crack
+  +10 dB, broadband; tail flatness 0.06 / 0.20 (v2 "PVC" was 0.010). Not yet heard by Pai.
+  Measuring scripts were throwaway (scratchpad).
   Demo WAVs: `_pops`, `_bangs`, `vtwin_lope_max`, `single_lope_max`.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
