@@ -81,6 +81,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private var next = DoubleArray(0)
     private var jit = DoubleArray(0)
     private var cylAmp = DoubleArray(0)
+    private var cylWidth = DoubleArray(0)
     private var phase = DoubleArray(0)
     private var amp = DoubleArray(0)
     private var barkEnv = DoubleArray(0)
@@ -111,9 +112,11 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
     private fun build(st: EngineStyle) {
         built = st
         val n = st.cylinders
-        next = st.firing.copyOf()
-        jit = DoubleArray(n)
+        // each cylinder's own fixed character: loudness, timing and pulse length
         cylAmp = DoubleArray(n) { 1.0 + st.unevenAmp * (rand01() * 2 - 1) }
+        next = DoubleArray(n) { st.firing[it] + st.unevenDeg * (rand01() * 2 - 1) + 1.0 }
+        cylWidth = DoubleArray(n) { st.pulseDeg * (1.0 + st.unevenWidth * (rand01() * 2 - 1)) }
+        jit = DoubleArray(n)
         phase = DoubleArray(n) { -1.0 }
         amp = DoubleArray(n)
         barkEnv = DoubleArray(n)
@@ -193,7 +196,7 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
                 val p = phase[c]
                 if (p >= 0) {
                     excite += amp[c] * shape(p)
-                    val np = p + dDeg / st.pulseDeg
+                    val np = p + dDeg / cylWidth[c]
                     phase[c] = if (np >= 1) -1.0 else np
                 }
                 if (barkEnv[c] > 1e-5) {
@@ -244,6 +247,10 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
             var pre = (body.low * 0.85 + y * 0.15) * norm + roar + crackle
             val drv = st.drive * (1 + 0.35 * camMix) * (0.7 + 0.6 * load)
             pre = tanh(drv * pre) / tanh(drv)
+            if (st.growl > 0) {
+                val cyc = 2 * PI * crank / 720.0
+                pre *= 1 + st.growl * (0.6 * sin(cyc) + 0.4 * sin(2 * cyc + 1.3))
+            }
 
             if (st.turbo) {
                 val tgt = if (cut) 0.0 else load * ((rpmS - 0.35 * st.redline) / (0.4 * st.redline)).coerceIn(0.0, 1.0)
@@ -267,8 +274,11 @@ class Synth(val sampleRate: Int, seed: Long = 7L) {
 
     private fun fire(c: Int, st: EngineStyle, over: Double, rpmS: Double) {
         val loud = if (cut) 0.12 else 0.28 + 0.72 * load
-        val a = loud * cylAmp[c] * (1 + 0.08 * (rand01() - 0.5)) * (1 + 0.3 * camKick)
-        phase[c] = min(over / st.pulseDeg, 0.99)
+        // a little random loudness per firing, mostly for the slow singles and twins: on an
+        // engine firing 1,000+ times a second it only adds hiss
+        val rough = 0.08 * min(1.0, st.jitterDeg / 4.0)
+        val a = loud * cylAmp[c] * (1 + rough * (rand01() - 0.5)) * (1 + 0.3 * camKick)
+        phase[c] = min(over / cylWidth[c], 0.99)
         amp[c] = a
         barkEnv[c] = if (cut) 0.0 else st.bark * (0.3 + 0.7 * load) * a
         // exhaust pops: unburnt fuel lighting in the pipe while the fuel is cut at high revs.

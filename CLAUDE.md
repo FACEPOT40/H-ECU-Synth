@@ -25,6 +25,12 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
 ## Files (app/src/main/java/com/pai/hecusynth)
 - `Engines.kt`: `EngineStyle` (firing angles in the 720° cycle + sound parameters), `Styles.ALL`,
   `BikeRange` (bike idle/redline -> style idle/redline), `CamSwitch` (300 rpm hysteresis).
+- Vacuum-cleaner fix (9 Nov, Pai: V6/V8/V10 "sound like a vacuum cleaner"): even-firing
+  engines with identical cylinders give one pure whine. Each cylinder now gets fixed loudness /
+  timing / pulse-length differences (`unevenAmp`, `unevenDeg`, `unevenWidth`) and the sound
+  swells once per 720° cycle (`growl`, after the saturation, which would flatten it).
+  `SynthTest.toneReport` prints growl/fire (cycle harmonics vs firing harmonics; F1 went from
+  0.00 to 0.2-0.35) and hiss above 2 kHz. Not yet confirmed by ear.
 - `Synth.kt`: the sound, pure Kotlin. Crank -> per-cylinder exhaust pulse + combustion noise ->
   pipe echo (comb) -> tone filter (`Svf`, opens with throttle and cam) -> intake roar, turbo
   (V6), pops (fuel cut at high rpm, ~12/s; OFF by default, Pai 9 Nov: "too much pop pop pop",

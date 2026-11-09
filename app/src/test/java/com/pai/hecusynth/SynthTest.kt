@@ -96,6 +96,30 @@ class SynthTest {
         }
     }
 
+    /** How "engine-like" vs "vacuum-cleaner-like": share of the sound that sits on the engine's
+     *  harmonics (tone) rather than between them (noise), at full throttle, high revs. */
+    @Test fun toneReport() {
+        val bike = BikeRange()
+        for (st in Styles.ALL) {
+            val x = steady(st, 7500.0, 100.0)
+            val cycle = bike.toStyle(7500.0, st) / 120.0
+            // growl = cycle harmonics that aren't firing harmonics (cylinder differences: what
+            // makes it an engine and not a motor whine); hiss = noise between harmonics > 2 kHz
+            var fire = 0.0
+            var growl = 0.0
+            var hiOn = 0.0
+            var hiOff = 0.0
+            var k = 1
+            while ((k + 1) * cycle < 12000) {
+                val p = power(x, k * cycle)
+                if (k % st.cylinders == 0) fire += p else growl += p
+                if (k * cycle > 2000) { hiOn += p; hiOff += power(x, (k + 0.5) * cycle) }
+                k++
+            }
+            println("%-7s growl/fire %.2f  hiss above 2 kHz %.0f %%".format(st.id, growl / fire, 100 * hiOff / (hiOn + hiOff)))
+        }
+    }
+
     @Test fun throttleMakesItLouder() {
         for (st in Styles.ALL) {
             val closed = rms(steady(st, 5000.0, 0.0))
