@@ -159,8 +159,15 @@ Package `com.pai.hecusynth` (never change it: that would make a separate app).
   1 / (10 - 4 x progress) s (+-10 %), level x (1 - 0.55 x progress), SURGE 3.0; whistle
   chopped (0.25 + 0.75 env). Measured: 8 "tu"s, gaps 100-160 ms, dips 0.08-0.14, 300-1000 Hz
   69 %, 1-2 kHz 20 %, ~+7-9 dB over coasting (= blow-off). `TurboTest.surgeIsSlowAndDeep`,
-  demos `lone_surge`, `i4/single_turbo_flutter`, `single_turbo_only_flutter`. Not yet heard
-  by Pai.
+  demos `lone_surge`, `i4/single_turbo_flutter`, `single_turbo_only_flutter`.
+  Pai: "the rhythm is correct but the pitch is not ... sound like a horse voice, he he he he".
+  The clips' "tu"s are VOICED (autocorrelation 0.8-0.95; we had whispered noise): pitch glides
+  down across the whole surge ~1040 -> ~660 Hz (surge1/4), ~630 -> ~450 Hz (surge2/3). Now each
+  "tu" carries a voice: f0 = (600 + 450 x pressure) x 0.62^progress x (1 - 0.03 x phase-in-"he")
+  x (1 + 0.04 jitter), 4 harmonics (1, 0.35, 0.15, 0.06), loudness waver (shimmer), VOICE 0.25
+  over breath (the old noise bands x BREATH 0.35), floor 0.12, swelling in with each "he" (not
+  struck, so not a bell). Measured: 1000 -> 623 Hz over 1 s, pitched 0.87-0.95, peaks
+  680-980 Hz; rhythm unchanged; ~+7-9 dB over coasting. Not yet heard by Pai.
 - `EngineSim.kt`: pretend engine revving in neutral (start/crank, inertia, limiter bounce,
   fuel cut on overrun). Gives the same three inputs the K-line will.
 - `AudioOut.kt`: AudioTrack float mono at the native rate, 256-frame blocks, low-latency mode,
